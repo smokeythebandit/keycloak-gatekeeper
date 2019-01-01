@@ -188,3 +188,36 @@ func TestGetMaxCookieChunkLength(t *testing.T) {
 	assert.Equal(t, p.getMaxCookieChunkLength(req, ""), 4021,
 		"cookie chunk calculation is not correct")
 }
+
+func TestRemoveCookiesFromRequest(t *testing.T) {
+	req, _ := http.NewRequest("GET", "https://www.example.com", nil)
+	cks := []*http.Cookie{
+		&http.Cookie{
+			Name: "toBeKept1",
+		},
+		&http.Cookie{
+			Name: "toBeRemoved",
+		},
+		&http.Cookie{
+			Name: "toBeRemoved-01",
+		},
+		&http.Cookie{
+			Name: "toBeKept2",
+		},
+	}
+	for _, ck := range cks {
+		req.AddCookie(ck)
+	}
+	removeCookiesFromRequest(req, map[string]struct{}{"toBeRemoved": {}})
+	_, err := req.Cookie("toBeRemoved")
+	assert.Error(t, err)
+
+	_, err = req.Cookie("toBeRemoved-01")
+	assert.Error(t, err)
+
+	_, err = req.Cookie("toBeKept1")
+	assert.NoError(t, err)
+
+	_, err = req.Cookie("toBeKept2")
+	assert.NoError(t, err)
+}

@@ -18,6 +18,7 @@ package main
 import (
 	"encoding/base64"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -66,7 +67,7 @@ func (r *oauthProxy) getMaxCookieChunkLength(req *http.Request, cookieName strin
 	return maxCookieChunkLength
 }
 
-// dropCookieWithChunks drops a cookie from the response, taking into account possible chunks
+// dropCookieWithChunks drops a cookie into the response, taking into account possible chunks
 func (r *oauthProxy) dropCookieWithChunks(req *http.Request, w http.ResponseWriter, name, value string, duration time.Duration) {
 	maxCookieChunkLength := r.getMaxCookieChunkLength(req, name)
 	if len(value) <= maxCookieChunkLength {
@@ -84,12 +85,12 @@ func (r *oauthProxy) dropCookieWithChunks(req *http.Request, w http.ResponseWrit
 	}
 }
 
-// dropAccessTokenCookie drops a access token cookie from the response
+// dropAccessTokenCookie drops a access token cookie into the response
 func (r *oauthProxy) dropAccessTokenCookie(req *http.Request, w http.ResponseWriter, value string, duration time.Duration) {
 	r.dropCookieWithChunks(req, w, r.config.CookieAccessName, value, duration)
 }
 
-// dropRefreshTokenCookie drops a refresh token cookie from the response
+// dropRefreshTokenCookie drops a refresh token cookie into the response
 func (r *oauthProxy) dropRefreshTokenCookie(req *http.Request, w http.ResponseWriter, value string, duration time.Duration) {
 	r.dropCookieWithChunks(req, w, r.config.CookieRefreshName, value, duration)
 }
@@ -103,7 +104,7 @@ func (r *oauthProxy) writeStateParameterCookie(req *http.Request, w http.Respons
 	return uuid
 }
 
-// clearAllCookies is just a helper function for the below
+// clearAllCookies clears both access and refresh token cookies
 func (r *oauthProxy) clearAllCookies(req *http.Request, w http.ResponseWriter) {
 	r.clearAccessTokenCookie(req, w)
 	r.clearRefreshTokenCookie(req, w)
@@ -135,6 +136,28 @@ func (r *oauthProxy) clearAccessTokenCookie(req *http.Request, w http.ResponseWr
 			r.dropCookie(w, req.Host, r.config.CookieAccessName+"-"+strconv.Itoa(i), "", -10*time.Hour)
 		} else {
 			break
+		}
+	}
+}
+
+var rxStripChunk = regexp.MustCompile(`(-\d+)$`)
+
+// removeCookiesFromRequest transforms a request by clearing a list of cookies (including any possible chunks)
+func removeCookiesFromRequest(req *http.Request, removed map[string]struct{}) {
+	cookies := make([]*http.Cookie, 0, len(req.Cookies()))
+	atLeastOnce := false
+	for _, cookie := range req.Cookies() {
+		match := rxStripChunk.ReplaceAllString(cookie.Name, "")
+		if _, ok := removed[match]; ok {
+			atLeastOnce = true
+			continue
+		}
+		cookies = append(cookies, cookie)
+	}
+	if atLeastOnce {
+		req.Header.Del("Cookie")
+		for _, cookie := range cookies {
+			req.AddCookie(cookie)
 		}
 	}
 }

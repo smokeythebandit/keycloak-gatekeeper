@@ -25,7 +25,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// proxyMiddleware is responsible for handles reverse proxy request to the upstream endpoint
+// proxyMiddleware is responsible for handling reverse proxy requests to the upstream endpoint
 func (r *oauthProxy) proxyMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		next.ServeHTTP(w, req)
@@ -47,6 +47,22 @@ func (r *oauthProxy) proxyMiddleware(next http.Handler) http.Handler {
 		// @step: add any custom headers to the request
 		for k, v := range r.config.Headers {
 			req.Header.Set(k, v)
+		}
+
+		// @step: drop proxy-specific cookies from request to send upstream
+		/*
+			removeCookiesFromRequest(req, map[string]struct{}{
+				r.config.CookieAccessName:  {},
+				r.config.CookieRefreshName: {},
+				r.config.CSRFCookieName:    {},
+				requestURICookie:           {},
+				requestStateCookie:         {},
+			})
+		*/
+
+		if r.config.EnableCSRF {
+			// remove csrf header
+			req.Header.Del(r.config.CSRFHeader)
 		}
 
 		// @note: by default goproxy only provides a forwarding proxy, thus all requests have to be absolute and we must update the host headers

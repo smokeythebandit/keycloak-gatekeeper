@@ -65,22 +65,44 @@ func runTestApp(t *testing.T) error {
 	return nil
 }
 
+func checkUpstreamCookies(t *testing.T, req *http.Request) {
+	// verify that the request received by upstream server is not polluted by proxy cookies
+	for _, kc := range []string{accessCookie, refreshCookie, "kc-csrf", requestURICookie, requestStateCookie} {
+		k, err := req.Cookie(kc)
+		if err == nil {
+			assert.Equalf(t, "censored", k.Value, "expected a censored value for cookie %s", k.Name)
+			return
+		}
+		assert.Errorf(t, err, "did not expect proxy cookie upstream: %s", accessCookie)
+	}
+}
+
+func checkNoCSRFHeader(t *testing.T, req *http.Request) {
+	assert.Empty(t, req.Header.Get("X-CSRF-Token"))
+}
+
 func runCsrfTestUpstream(t *testing.T) error {
 	// a stub upstream API server
 	go func() {
 		getUpstream := func(w http.ResponseWriter, req *http.Request) {
+			checkUpstreamCookies(t, req)
+			checkNoCSRFHeader(t, req)
 			w.Header().Set("Content-Type", "application/json")
 			w.Header().Set("X-Upstream-Response-Header", "test")
 			_, _ = io.WriteString(w, `{"message": "test"}`)
 		}
 
 		postUpstream := func(w http.ResponseWriter, req *http.Request) {
+			checkUpstreamCookies(t, req)
+			checkNoCSRFHeader(t, req)
 			w.Header().Set("Content-Type", "application/json")
 			w.Header().Set("X-Upstream-Response-Header", "test")
 			_, _ = io.WriteString(w, `{"message": "posted"}`)
 		}
 
 		deleteUpstream := func(w http.ResponseWriter, req *http.Request) {
+			checkUpstreamCookies(t, req)
+			checkNoCSRFHeader(t, req)
 			w.Header().Set("Content-Type", "application/json")
 			w.Header().Set("X-Upstream-Response-Header", "test")
 			_, _ = io.WriteString(w, `{"message": "deleted"}`)
@@ -550,6 +572,7 @@ func TestCSRF(t *testing.T) {
 	config.EnableSessionCookies = true
 	config.ClientID = fakeClientID
 	config.ClientSecret = fakeSecret
+	config.EnableAuthorizationCookies = false
 	config.Resources = []*Resource{
 		{
 			URL:         e2eCsrfUpstreamURL2,

@@ -24,9 +24,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/coreos/go-oidc/jose"
 	"github.com/coreos/go-oidc/oauth2"
-	"github.com/coreos/go-oidc/oidc"
 )
 
 // getOAuthClient returns a oauth2 client from the openid client
@@ -39,13 +37,14 @@ func (r *oauthProxy) getOAuthClient(redirectionURL string) (*oauth2.Client, erro
 		AuthMethod:  oauth2.AuthMethodClientSecretBasic,
 		AuthURL:     r.idp.AuthEndpoint.String(),
 		RedirectURL: redirectionURL,
-		Scope:       append(r.config.Scopes, oidc.DefaultScope...),
+		Scope:       append(r.config.Scopes, DefaultScope...),
 		TokenURL:    r.idp.TokenEndpoint.String(),
 	})
 }
 
 // verifyToken verify that the token in the user context is valid
-func verifyToken(client *oidc.Client, token jose.JWT) error {
+func verifyToken(client *OIDCClient, token JSONWebToken) error {
+	// TODO(fredbi)
 	if err := client.VerifyJWT(token); err != nil {
 		if strings.Contains(err.Error(), "token is expired") {
 			return ErrAccessTokenExpired
@@ -57,22 +56,22 @@ func verifyToken(client *oidc.Client, token jose.JWT) error {
 }
 
 // getRefreshedToken attempts to refresh the access token, returning the parsed token and the time it expires or a error
-func getRefreshedToken(client *oidc.Client, t string) (jose.JWT, time.Time, error) {
+func getRefreshedToken(client *OIDCClient, t string) (JSONWebToken, time.Time, error) {
 	cl, err := client.OAuthClient()
 	if err != nil {
-		return jose.JWT{}, time.Time{}, err
+		return JSONWebToken{}, time.Time{}, err
 	}
 	response, err := getToken(cl, oauth2.GrantTypeRefreshToken, t)
 	if err != nil {
 		if strings.Contains(err.Error(), "token expired") {
-			return jose.JWT{}, time.Time{}, ErrRefreshTokenExpired
+			return JSONWebToken{}, time.Time{}, ErrRefreshTokenExpired
 		}
-		return jose.JWT{}, time.Time{}, err
+		return JSONWebToken{}, time.Time{}, err
 	}
 
 	token, identity, err := parseToken(response.AccessToken)
 	if err != nil {
-		return jose.JWT{}, time.Time{}, err
+		return JSONWebToken{}, time.Time{}, err
 	}
 
 	return token, identity.ExpiresAt, nil
@@ -84,7 +83,7 @@ func exchangeAuthenticationCode(client *oauth2.Client, code string) (oauth2.Toke
 }
 
 // getUserinfo is responsible for getting the userinfo from the IDPD
-func getUserinfo(client *oauth2.Client, endpoint string, token string) (jose.Claims, error) {
+func getUserinfo(client *oauth2.Client, endpoint string, token string) (*Claims, error) {
 	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
 	if err != nil {
 		return nil, err
@@ -102,12 +101,12 @@ func getUserinfo(client *oauth2.Client, endpoint string, token string) (jose.Cla
 	if err != nil {
 		return nil, err
 	}
-	var claims jose.Claims
+	var claims Claims
 	if err := json.Unmarshal(content, &claims); err != nil {
 		return nil, err
 	}
 
-	return claims, nil
+	return &claims, nil
 }
 
 // getToken retrieves a code from the provider, extracts and verified the token
@@ -131,18 +130,18 @@ func getToken(client *oauth2.Client, grantType, code string) (oauth2.TokenRespon
 }
 
 // parseToken retrieve the user identity from the token
-func parseToken(t string) (jose.JWT, *oidc.Identity, error) {
-	token, err := jose.ParseJWT(t)
+func parseToken(t string) (JSONWebToken, *OIDCIdentity, error) {
+	token, err := ParseJWT(t)
 	if err != nil {
-		return jose.JWT{}, nil, err
+		return JSONWebToken{}, nil, err
 	}
 	claims, err := token.Claims()
 	if err != nil {
-		return jose.JWT{}, nil, err
+		return JSONWebToken{}, nil, err
 	}
-	identity, err := oidc.IdentityFromClaims(claims)
+	identity, err := IdentityFromClaims(claims)
 	if err != nil {
-		return jose.JWT{}, nil, err
+		return JSONWebToken{}, nil, err
 	}
 
 	return token, identity, nil

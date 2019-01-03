@@ -34,6 +34,13 @@
   version = "1.4.7"
 
 [[constraint]]
+  branch = "v2"
+  name = "github.com/square/go-jose"
+
+[[constraint]]
+  name = "github.com/dgrijalva/jwt-go"
+
+[[constraint]]
   branch = "v1"
   name = "github.com/coreos/go-oidc"
 

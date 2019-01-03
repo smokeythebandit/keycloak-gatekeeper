@@ -423,7 +423,7 @@ func (r *oauthProxy) tokenHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	_, _ = w.Write(user.token.Payload)
+	_, _ = w.Write(user.token.Payload())
 }
 
 // healthHandler is a health check handler for the service

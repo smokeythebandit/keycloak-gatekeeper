@@ -21,7 +21,6 @@ import (
 	"crypto/rand"
 	cryptorand "crypto/rand"
 	"crypto/rsa"
-	sha "crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
@@ -45,7 +44,6 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/coreos/go-oidc/jose"
 	"github.com/urfave/cli"
 	yaml "gopkg.in/yaml.v2"
 )
@@ -451,12 +449,6 @@ func getWithin(expires time.Time, within float64) time.Duration {
 	seconds := int(left * within)
 
 	return time.Duration(seconds) * time.Second
-}
-
-// getHashKey returns a hash of the encodes jwt token
-func getHashKey(token *jose.JWT) string {
-	hash := sha.Sum256([]byte(token.Encode()))
-	return base64.RawStdEncoding.EncodeToString(hash[:])
 }
 
 // printError display the command line usage and error

@@ -21,7 +21,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/coreos/go-oidc/jose"
 	"go.uber.org/zap"
 )
 
@@ -38,7 +37,7 @@ func (r *oauthProxy) getIdentity(req *http.Request) (*userContext, error) {
 			return nil, ErrDecryption
 		}
 	}
-	token, err := jose.ParseJWT(access)
+	token, err := ParseJWT(access)
 	if err != nil {
 		return nil, err
 	}

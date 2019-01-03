@@ -20,8 +20,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/coreos/go-oidc/jose"
-	"github.com/coreos/go-oidc/oidc"
 	"go.uber.org/zap"
 )
 
@@ -82,11 +80,11 @@ func (r *oauthProxy) forwardProxyHandler() func(*http.Request, *http.Response) {
 	// the loop state
 	var state struct {
 		// the access token
-		token jose.JWT
+		token JSONWebToken
 		// the refresh token if any
 		refresh string
 		// the identity of the user
-		identity *oidc.Identity
+		identity *OIDCIdentity
 		// the expiry time of the access token
 		expiration time.Time
 		// whether we need to login

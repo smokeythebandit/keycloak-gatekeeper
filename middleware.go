@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/purell"
-	"github.com/coreos/go-oidc/jose"
 	"github.com/go-chi/chi/middleware"
 	uuid "github.com/satori/go.uuid"
 	"github.com/unrolled/secure"
@@ -205,7 +204,7 @@ func (r *oauthProxy) authenticationMiddleware(resource *Resource) func(http.Hand
 					r.dropAccessTokenCookie(req.WithContext(ctx), w, accessToken, expiresIn)
 
 					if r.useStore() {
-						go func(old, new jose.JWT, encrypted string) {
+						go func(old, new JSONWebToken, encrypted string) {
 							if err := r.DeleteRefreshToken(old); err != nil {
 								r.log.Error("failed to remove old token", zap.Error(err))
 							}
@@ -235,7 +234,7 @@ func (r *oauthProxy) checkClaim(user *userContext, claimName string, match *rege
 		zap.String("resource", resourceURL),
 	}
 
-	if _, found := user.claims[claimName]; !found {
+	if _, found := user.claims.Get(claimName); !found {
 		r.log.Warn("the token does not have the claim", errFields...)
 		return false
 	}
@@ -396,7 +395,7 @@ func (r *oauthProxy) identityHeadersMiddleware(custom []string) func(http.Handle
 				}
 				// inject any custom claims
 				for claim, header := range customClaims {
-					if claim, found := user.claims[claim]; found {
+					if claim, found := user.claims.Get(claim); found {
 						req.Header.Set(header, fmt.Sprintf("%v", claim))
 					}
 				}

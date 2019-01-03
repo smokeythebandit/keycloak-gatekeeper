@@ -19,18 +19,15 @@ import (
 	"fmt"
 	"strings"
 	"time"
-
-	"github.com/coreos/go-oidc/jose"
-	"github.com/coreos/go-oidc/oidc"
 )
 
 // extractIdentity parse the jwt token and extracts the various elements is order to construct
-func extractIdentity(token jose.JWT) (*userContext, error) {
+func extractIdentity(token JSONWebToken) (*userContext, error) {
 	claims, err := token.Claims()
 	if err != nil {
 		return nil, err
 	}
-	identity, err := oidc.IdentityFromClaims(claims)
+	identity, err := IdentityFromClaims(claims)
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +52,8 @@ func extractIdentity(token jose.JWT) (*userContext, error) {
 
 	// @step: extract the realm roles
 	var roleList []string
-	if realmRoles, found := claims[claimRealmAccess].(map[string]interface{}); found {
+	realmRoles, found, _ := claims.MapClaim(claimRealmAccess)
+	if found {
 		if roles, found := realmRoles[claimResourceRoles]; found {
 			for _, r := range roles.([]interface{}) {
 				roleList = append(roleList, fmt.Sprintf("%s", r))
@@ -64,7 +62,8 @@ func extractIdentity(token jose.JWT) (*userContext, error) {
 	}
 
 	// @step: extract the client roles from the access token
-	if accesses, found := claims[claimResourceAccess].(map[string]interface{}); found {
+	accesses, found, _ := claims.MapClaim(claimResourceAccess)
+	if found {
 		for name, list := range accesses {
 			scopes := list.(map[string]interface{})
 			if roles, found := scopes[claimResourceRoles]; found {
@@ -97,6 +96,7 @@ func extractIdentity(token jose.JWT) (*userContext, error) {
 
 // backported from https://github.com/coreos/go-oidc/blob/master/oidc/verification.go#L28-L37
 // I'll raise another PR to make it public in the go-oidc package so we can just use `oidc.ContainsString()`
+// TODO(fredbi): add this to Claims
 func containsString(needle string, haystack []string) bool {
 	for _, v := range haystack {
 		if v == needle {

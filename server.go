@@ -336,6 +336,7 @@ func (r *oauthProxy) createReverseProxy() error {
 }
 
 // createForwardingProxy creates a forwarding proxy
+// TODO: separate this, so this can be skipped from build
 func (r *oauthProxy) createForwardingProxy() error {
 	r.log.Info("enabling forward signing mode, listening on", zap.String("interface", r.config.Listen))
 
@@ -700,6 +701,7 @@ func (r *oauthProxy) createHTTPListener(config listenerConfig) (net.Listener, er
 }
 
 // createUpstreamProxy creates a reverse http proxy client to the upstream
+// TODO: separate this so this can be split from build
 func (r *oauthProxy) createUpstreamProxy(upstream *url.URL) error {
 	dialer := (&net.Dialer{
 		KeepAlive: r.config.UpstreamKeepaliveTimeout,
@@ -750,6 +752,7 @@ func (r *oauthProxy) createUpstreamProxy(upstream *url.URL) error {
 	}
 
 	// create the forwarding proxy
+	// TODO: remove this
 	proxy := goproxy.NewProxyHttpServer()
 	proxy.KeepDestinationHeaders = !r.config.CorsDisableUpstream
 	proxy.Logger = httplog.New(ioutil.Discard, "", 0)

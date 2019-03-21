@@ -1,0 +1,13 @@
+version: 2.0
+jobs:
+  build:
+    working_directory: /go/src/github.com/oneconcern/keycloak-gatekeeper
+    docker:
+      # This is a debian strech image (todo: use alpine builder)
+      - image: circleci/golang:latest
+    steps:
+      - checkout
+      - run:
+          name: Run unit tests
+          command: 'dep ensure && go test -v -covermode=atomic -coverprofile=cover.out'
+          no_output_timeout: 30m

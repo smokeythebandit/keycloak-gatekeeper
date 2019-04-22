@@ -5,9 +5,11 @@ jobs:
     docker:
       # This is a debian strech image (todo: use alpine builder)
       - image: circleci/golang:latest
+    environment:
+      - GO111MODULE: "on"
     steps:
       - checkout
       - run:
           name: Run unit tests
-          command: 'dep ensure && go test -v -covermode=atomic -coverprofile=cover.out'
+          command: 'go test -v -covermode=atomic -coverprofile=cover.out'
           no_output_timeout: 30m

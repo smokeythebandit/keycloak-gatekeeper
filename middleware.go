@@ -24,9 +24,9 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/purell"
-	"github.com/coreos/go-oidc/jose"
 	"github.com/go-chi/chi/middleware"
 	gcsrf "github.com/gorilla/csrf"
+	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/jose"
 	uuid "github.com/satori/go.uuid"
 	"github.com/unrolled/secure"
 	"go.uber.org/zap"

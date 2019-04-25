@@ -5,7 +5,7 @@ package main
 import (
 	"errors"
 
-	"github.com/coreos/go-oidc/jose"
+	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/jose"
 )
 
 func (r *Config) isStoreValid() error {

@@ -37,10 +37,10 @@ import (
 	httplog "log"
 
 	proxyproto "github.com/armon/go-proxyproto"
-	"github.com/coreos/go-oidc/oidc"
 	"github.com/elazarl/goproxy"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
+	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/oidc"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"

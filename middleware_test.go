@@ -26,7 +26,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/coreos/go-oidc/jose"
+	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/jose"
 	"github.com/rs/cors"
 	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"

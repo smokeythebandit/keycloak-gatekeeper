@@ -23,9 +23,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/coreos/go-oidc/jose"
-	"github.com/coreos/go-oidc/oidc"
 	"github.com/elazarl/goproxy"
+	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/jose"
+	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/oidc"
 	"go.uber.org/zap"
 )
 

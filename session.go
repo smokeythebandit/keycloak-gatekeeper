@@ -21,7 +21,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/coreos/go-oidc/jose"
+	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/jose"
 	"go.uber.org/zap"
 )
 

@@ -6,16 +6,15 @@ require (
 	github.com/armon/go-proxyproto v0.0.0-20180202201750-5b7edb60ff5f
 	github.com/boltdb/bolt v1.3.1
 	github.com/codegangsta/negroni v1.0.0 // indirect
-	github.com/coreos/go-oidc v0.0.0-20171020180921-e860bd55bfa7
-	github.com/coreos/pkg v0.0.0-20161026222926-447b7ec906e5 // indirect
+	github.com/coreos/pkg v0.0.0-20161026222926-447b7ec906e5
 	github.com/elazarl/goproxy v0.0.0-20181111060418-2ce16c963a8a
 	github.com/fsnotify/fsnotify v1.4.7
 	github.com/garyburd/redigo v1.6.0 // indirect
 	github.com/go-chi/chi v4.0.1+incompatible
 	github.com/gorilla/csrf v1.5.1
-	github.com/jonboulle/clockwork v0.1.0 // indirect
+	github.com/jonboulle/clockwork v0.1.0
 	github.com/kr/pretty v0.1.0 // indirect
-	github.com/kylelemons/godebug v0.0.0-20170820004349-d65d576e9348 // indirect
+	github.com/kylelemons/godebug v0.0.0-20170820004349-d65d576e9348
 	github.com/onsi/ginkgo v1.7.0 // indirect
 	github.com/onsi/gomega v1.4.3 // indirect
 	github.com/pkg/errors v0.8.1 // indirect

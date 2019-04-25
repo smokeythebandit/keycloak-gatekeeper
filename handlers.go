@@ -31,8 +31,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/coreos/go-oidc/oauth2"
 	gcsrf "github.com/gorilla/csrf"
+	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/oauth2"
 
 	"github.com/go-chi/chi"
 	"go.uber.org/zap"

@@ -20,8 +20,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/coreos/go-oidc/jose"
-	"github.com/coreos/go-oidc/oidc"
+	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/jose"
+	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/oidc"
 )
 
 // extractIdentity parse the jwt token and extracts the various elements is order to construct

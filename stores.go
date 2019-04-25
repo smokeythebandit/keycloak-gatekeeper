@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/coreos/go-oidc/jose"
+	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/jose"
 	"go.uber.org/zap"
 )
 

@@ -6,6 +6,7 @@ import (
 
 	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/jose"
 	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/key"
+	"github.com/oneconcern/keycloak-gatekeeper/internal/providers"
 )
 
 func TestVerifyClientClaims(t *testing.T) {
@@ -192,18 +193,18 @@ func TestJWTVerifier(t *testing.T) {
 	}
 	pk2 := *key.NewPublicKey(priv2.JWK())
 
-	newJWT := func(issuer, subject string, aud interface{}, issuedAt, exp time.Time, signer jose.Signer) jose.JWT {
+	newJWT := func(issuer, subject string, aud interface{}, issuedAt, exp time.Time, signer jose.Signer) providers.JSONWebToken {
 		jwt, err := jose.NewSignedJWT(NewClaims(issuer, subject, aud, issuedAt, exp), signer)
 		if err != nil {
 			t.Fatal(err)
 		}
-		return *jwt
+		return jwt
 	}
 
 	tests := []struct {
 		name     string
 		verifier JWTVerifier
-		jwt      jose.JWT
+		jwt      providers.JSONWebToken
 		wantErr  bool
 	}{
 		{

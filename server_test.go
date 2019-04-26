@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/jose"
+	"github.com/oneconcern/keycloak-gatekeeper/internal/providers"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -567,7 +568,7 @@ func (t *fakeToken) merge(claims jose.Claims) {
 }
 
 // getToken returns a JWT token from the clains
-func (t *fakeToken) getToken() jose.JWT {
+func (t *fakeToken) getToken() providers.JSONWebToken {
 	tk, _ := jose.NewJWT(jose.JOSEHeader{"alg": "RS256"}, t.claims)
 	return tk
 }

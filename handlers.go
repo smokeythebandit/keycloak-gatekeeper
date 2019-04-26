@@ -427,7 +427,7 @@ func (r *oauthProxy) tokenHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", jsonMime)
-	_, _ = w.Write(user.token.Payload)
+	_, _ = w.Write(user.token.Payload())
 	w.WriteHeader(http.StatusOK)
 }
 

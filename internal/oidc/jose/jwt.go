@@ -1,20 +1,24 @@
 package jose
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/oneconcern/keycloak-gatekeeper/internal/providers"
+)
 
 type JWT JWS
 
-func ParseJWT(token string) (jwt JWT, err error) {
+func ParseJWT(token string) (jwt *JWT, err error) {
 	jws, err := ParseJWS(token)
 	if err != nil {
 		return
 	}
 
-	return JWT(jws), nil
+	return (*JWT)(jws), nil
 }
 
-func NewJWT(header JOSEHeader, claims Claims) (jwt JWT, err error) {
-	jwt = JWT{}
+func NewJWT(header JOSEHeader, claims providers.Claims) (jwt *JWT, err error) {
+	jwt = &JWT{}
 
 	jwt.Header = header
 	jwt.Header[HeaderMediaType] = "JWT"
@@ -23,7 +27,7 @@ func NewJWT(header JOSEHeader, claims Claims) (jwt JWT, err error) {
 	if err != nil {
 		return
 	}
-	jwt.Payload = claimBytes
+	jwt.payload = claimBytes
 
 	eh, err := encodeHeader(header)
 	if err != nil {
@@ -40,13 +44,25 @@ func NewJWT(header JOSEHeader, claims Claims) (jwt JWT, err error) {
 	return
 }
 
+func (j *JWT) Hash() string {
+	panic("not implemented")
+}
+
+func (j *JWT) Payload() []byte {
+	return j.payload
+}
+
+func (j *JWT) Raw() string {
+	return string(j.RawPayload)
+}
+
 func (j *JWT) KeyID() (string, bool) {
 	kID, ok := j.Header[HeaderKeyID]
 	return kID, ok
 }
 
-func (j *JWT) Claims() (Claims, error) {
-	return decodeClaims(j.Payload)
+func (j *JWT) Claims() (providers.Claims, error) {
+	return decodeClaims(j.payload)
 }
 
 // Encoded data part of the token which may be signed.
@@ -61,7 +77,7 @@ func (j *JWT) Encode() string {
 	return strings.Join([]string{d, s}, ".")
 }
 
-func NewSignedJWT(claims Claims, s Signer) (*JWT, error) {
+func NewSignedJWT(claims providers.Claims, s Signer) (*JWT, error) {
 	header := JOSEHeader{
 		HeaderKeyAlgorithm: s.Alg(),
 		HeaderKeyID:        s.ID(),
@@ -78,5 +94,5 @@ func NewSignedJWT(claims Claims, s Signer) (*JWT, error) {
 	}
 	jwt.Signature = sig
 
-	return &jwt, nil
+	return jwt, nil
 }

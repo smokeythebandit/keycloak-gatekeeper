@@ -22,7 +22,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/jose"
+	"github.com/oneconcern/keycloak-gatekeeper/internal/providers"
 	"go.uber.org/zap"
 )
 
@@ -101,7 +101,7 @@ func (r *oauthProxy) redirectToAuthorization(w http.ResponseWriter, req *http.Re
 }
 
 // getAccessCookieExpiration calculates the expiration of the access token cookie
-func (r *oauthProxy) getAccessCookieExpiration(token jose.JWT, refresh string) time.Duration {
+func (r *oauthProxy) getAccessCookieExpiration(token providers.JSONWebToken, refresh string) time.Duration {
 	// notes: by default the duration of the access token will be the configuration option, if
 	// however we can decode the refresh token, we will set the duration to the duration of the
 	// refresh token

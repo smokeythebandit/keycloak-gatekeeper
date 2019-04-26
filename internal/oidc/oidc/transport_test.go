@@ -7,66 +7,67 @@ import (
 	"testing"
 
 	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/jose"
+	"github.com/oneconcern/keycloak-gatekeeper/internal/providers"
 )
 
 type staticTokenRefresher struct {
-	verify  func(jose.JWT) error
-	refresh func() (jose.JWT, error)
+	verify  func(providers.JSONWebToken) error
+	refresh func() (providers.JSONWebToken, error)
 }
 
-func (s *staticTokenRefresher) Verify(jwt jose.JWT) error {
+func (s *staticTokenRefresher) Verify(jwt providers.JSONWebToken) error {
 	return s.verify(jwt)
 }
 
-func (s *staticTokenRefresher) Refresh() (jose.JWT, error) {
+func (s *staticTokenRefresher) Refresh() (providers.JSONWebToken, error) {
 	return s.refresh()
 }
 
 func TestAuthenticatedTransportVerifiedJWT(t *testing.T) {
 	tests := []struct {
 		refresher TokenRefresher
-		startJWT  jose.JWT
-		wantJWT   jose.JWT
+		startJWT  providers.JSONWebToken
+		wantJWT   providers.JSONWebToken
 		wantError error
 	}{
 		// verification succeeds, so refresh is not called
 		{
 			refresher: &staticTokenRefresher{
-				verify:  func(jose.JWT) error { return nil },
-				refresh: func() (jose.JWT, error) { return jose.JWT{RawPayload: "2"}, nil },
+				verify:  func(providers.JSONWebToken) error { return nil },
+				refresh: func() (providers.JSONWebToken, error) { return &jose.JWT{RawPayload: "2"}, nil },
 			},
-			startJWT: jose.JWT{RawPayload: "1"},
-			wantJWT:  jose.JWT{RawPayload: "1"},
+			startJWT: &jose.JWT{RawPayload: "1"},
+			wantJWT:  &jose.JWT{RawPayload: "1"},
 		},
 
 		// verification fails, refresh succeeds so cached JWT changes
 		{
 			refresher: &staticTokenRefresher{
-				verify:  func(jose.JWT) error { return errors.New("fail!") },
-				refresh: func() (jose.JWT, error) { return jose.JWT{RawPayload: "2"}, nil },
+				verify:  func(providers.JSONWebToken) error { return errors.New("fail!") },
+				refresh: func() (providers.JSONWebToken, error) { return &jose.JWT{RawPayload: "2"}, nil },
 			},
-			startJWT: jose.JWT{RawPayload: "1"},
-			wantJWT:  jose.JWT{RawPayload: "2"},
+			startJWT: &jose.JWT{RawPayload: "1"},
+			wantJWT:  &jose.JWT{RawPayload: "2"},
 		},
 
 		// verification succeeds, so failing refresh isn't attempted
 		{
 			refresher: &staticTokenRefresher{
-				verify:  func(jose.JWT) error { return nil },
-				refresh: func() (jose.JWT, error) { return jose.JWT{}, errors.New("fail!") },
+				verify:  func(providers.JSONWebToken) error { return nil },
+				refresh: func() (providers.JSONWebToken, error) { return &jose.JWT{}, errors.New("fail!") },
 			},
-			startJWT: jose.JWT{RawPayload: "1"},
-			wantJWT:  jose.JWT{RawPayload: "1"},
+			startJWT: &jose.JWT{RawPayload: "1"},
+			wantJWT:  &jose.JWT{RawPayload: "1"},
 		},
 
 		// verification fails, but refresh fails, too
 		{
 			refresher: &staticTokenRefresher{
-				verify:  func(jose.JWT) error { return errors.New("fail!") },
-				refresh: func() (jose.JWT, error) { return jose.JWT{}, errors.New("fail!") },
+				verify:  func(providers.JSONWebToken) error { return errors.New("fail!") },
+				refresh: func() (providers.JSONWebToken, error) { return &jose.JWT{}, errors.New("fail!") },
 			},
-			startJWT:  jose.JWT{RawPayload: "1"},
-			wantJWT:   jose.JWT{},
+			startJWT:  &jose.JWT{RawPayload: "1"},
+			wantJWT:   &jose.JWT{},
 			wantError: errors.New("unable to acquire valid JWT: fail!"),
 		},
 	}
@@ -90,13 +91,13 @@ func TestAuthenticatedTransportVerifiedJWT(t *testing.T) {
 func TestAuthenticatedTransportJWTCaching(t *testing.T) {
 	at := &AuthenticatedTransport{
 		TokenRefresher: &staticTokenRefresher{
-			verify:  func(jose.JWT) error { return errors.New("fail!") },
-			refresh: func() (jose.JWT, error) { return jose.JWT{RawPayload: "2"}, nil },
+			verify:  func(providers.JSONWebToken) error { return errors.New("fail!") },
+			refresh: func() (providers.JSONWebToken, error) { return &jose.JWT{RawPayload: "2"}, nil },
 		},
-		jwt: jose.JWT{RawPayload: "1"},
+		jwt: &jose.JWT{RawPayload: "1"},
 	}
 
-	wantJWT := jose.JWT{RawPayload: "2"}
+	wantJWT := &jose.JWT{RawPayload: "2"}
 	gotJWT, err := at.verifiedJWT()
 	if err != nil {
 		t.Fatalf("got non-nil error: %#v", err)
@@ -106,8 +107,8 @@ func TestAuthenticatedTransportJWTCaching(t *testing.T) {
 	}
 
 	at.TokenRefresher = &staticTokenRefresher{
-		verify:  func(jose.JWT) error { return nil },
-		refresh: func() (jose.JWT, error) { return jose.JWT{RawPayload: "3"}, nil },
+		verify:  func(providers.JSONWebToken) error { return nil },
+		refresh: func() (providers.JSONWebToken, error) { return &jose.JWT{RawPayload: "3"}, nil },
 	}
 
 	// the previous JWT should still be cached on the AuthenticatedTransport since
@@ -135,10 +136,10 @@ func TestAuthenticatedTransportRoundTrip(t *testing.T) {
 	rr := &fakeRoundTripper{nil, &http.Response{StatusCode: http.StatusOK}}
 	at := &AuthenticatedTransport{
 		TokenRefresher: &staticTokenRefresher{
-			verify: func(jose.JWT) error { return nil },
+			verify: func(providers.JSONWebToken) error { return nil },
 		},
 		RoundTripper: rr,
-		jwt:          jose.JWT{RawPayload: "1"},
+		jwt:          &jose.JWT{RawPayload: "1"},
 	}
 
 	req := http.Request{}
@@ -162,11 +163,11 @@ func TestAuthenticatedTransportRoundTripRefreshFail(t *testing.T) {
 	rr := &fakeRoundTripper{nil, &http.Response{StatusCode: http.StatusOK}}
 	at := &AuthenticatedTransport{
 		TokenRefresher: &staticTokenRefresher{
-			verify:  func(jose.JWT) error { return errors.New("fail!") },
-			refresh: func() (jose.JWT, error) { return jose.JWT{}, errors.New("fail!") },
+			verify:  func(providers.JSONWebToken) error { return errors.New("fail!") },
+			refresh: func() (providers.JSONWebToken, error) { return &jose.JWT{}, errors.New("fail!") },
 		},
 		RoundTripper: rr,
-		jwt:          jose.JWT{RawPayload: "1"},
+		jwt:          &jose.JWT{RawPayload: "1"},
 	}
 
 	_, err := at.RoundTrip(&http.Request{})

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/jose"
+	"github.com/oneconcern/keycloak-gatekeeper/internal/providers"
 )
 
 type Identity struct {
@@ -14,7 +14,7 @@ type Identity struct {
 	ExpiresAt time.Time
 }
 
-func IdentityFromClaims(claims jose.Claims) (*Identity, error) {
+func IdentityFromClaims(claims providers.Claims) (*Identity, error) {
 	if claims == nil {
 		return nil, errors.New("nil claim set")
 	}

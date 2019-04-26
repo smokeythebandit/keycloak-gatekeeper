@@ -22,7 +22,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/jose"
+	"github.com/oneconcern/keycloak-gatekeeper/internal/providers"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -434,7 +434,7 @@ type userContext struct {
 	// whether the context is from a session cookie or authorization header
 	bearerToken bool
 	// the claims associated to the token
-	claims jose.Claims
+	claims providers.Claims
 	// the email associated to the user
 	email string
 	// the expiration of the access token
@@ -448,7 +448,7 @@ type userContext struct {
 	// roles is a collection of roles the users holds
 	roles []string
 	// the access token itself
-	token jose.JWT
+	token providers.JSONWebToken
 }
 
 // tokenResponse

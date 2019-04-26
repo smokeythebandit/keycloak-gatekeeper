@@ -5,9 +5,29 @@ import (
 	"fmt"
 	"math"
 	"time"
+
+	"github.com/oneconcern/keycloak-gatekeeper/internal/providers"
 )
 
 type Claims map[string]interface{}
+
+func (c Claims) Get(name string) (interface{}, bool) {
+	claim, ok := c[name]
+	return claim, ok
+}
+
+func (c Claims) Has(name string) bool {
+	_, ok := c[name]
+	return ok
+}
+
+func (c Claims) GetErr(name string) (interface{}, bool, error) {
+	claim, ok := c[name]
+	if ok {
+		return claim, ok, nil
+	}
+	return nil, false, fmt.Errorf("claims not found: %q", name)
+}
 
 func (c Claims) Add(name string, value interface{}) {
 	c[name] = value
@@ -108,7 +128,7 @@ func decodeClaims(payload []byte) (Claims, error) {
 	return c, nil
 }
 
-func marshalClaims(c Claims) ([]byte, error) {
+func marshalClaims(c providers.Claims) ([]byte, error) {
 	b, err := json.Marshal(c)
 	if err != nil {
 		return nil, err
@@ -116,7 +136,7 @@ func marshalClaims(c Claims) ([]byte, error) {
 	return b, nil
 }
 
-func encodeClaims(c Claims) (string, error) {
+func encodeClaims(c providers.Claims) (string, error) {
 	b, err := marshalClaims(c)
 	if err != nil {
 		return "", err

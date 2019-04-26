@@ -32,6 +32,7 @@ import (
 	"github.com/go-chi/chi/middleware"
 	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/jose"
 	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/oauth2"
+	"github.com/oneconcern/keycloak-gatekeeper/internal/providers"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -145,7 +146,7 @@ func (r *fakeAuthServer) getRevocationURL() string {
 	return fmt.Sprintf("%s://%s/auth/realms/hod-test/protocol/openid-connect/logout", r.location.Scheme, r.location.Host)
 }
 
-func (r *fakeAuthServer) signToken(claims jose.Claims) (*jose.JWT, error) {
+func (r *fakeAuthServer) signToken(claims jose.Claims) (providers.JSONWebToken, error) {
 	return jose.NewSignedJWT(claims, r.signer)
 }
 
@@ -217,14 +218,15 @@ func (r *fakeAuthServer) userInfoHandler(w http.ResponseWriter, req *http.Reques
 		return
 	}
 
+	mclaims := claims.(jose.Claims)
 	renderJSON(http.StatusOK, w, req, map[string]interface{}{
-		"sub":                claims["sub"],
-		"name":               claims["name"],
-		"given_name":         claims["given_name"],
-		"family_name":        claims["familty_name"],
-		"preferred_username": claims["preferred_username"],
-		"email":              claims["email"],
-		"picture":            claims["picture"],
+		"sub":                mclaims["sub"],
+		"name":               mclaims["name"],
+		"given_name":         mclaims["given_name"],
+		"family_name":        mclaims["family_name"],
+		"preferred_username": mclaims["preferred_username"],
+		"email":              mclaims["email"],
+		"picture":            mclaims["picture"],
 	})
 }
 
@@ -306,7 +308,7 @@ func TestTokenExpired(t *testing.T) {
 			t.Errorf("case %d unable to sign the token, error: %s", i, err)
 			continue
 		}
-		err = verifyToken(px.client, *signed)
+		err = verifyToken(px.client, signed)
 		if x.OK && err != nil {
 			t.Errorf("case %d, expected: %t got error: %s", i, x.OK, err)
 		}

@@ -45,7 +45,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/jose"
+	"github.com/oneconcern/keycloak-gatekeeper/internal/providers"
 	"github.com/urfave/cli"
 	yaml "gopkg.in/yaml.v2"
 )
@@ -474,7 +474,7 @@ func getWithin(expires time.Time, within float64) time.Duration {
 }
 
 // getHashKey returns a hash of the encodes jwt token
-func getHashKey(token *jose.JWT) string {
+func getHashKey(token providers.JSONWebToken) string {
 	hash := sha.Sum256([]byte(token.Encode()))
 	return base64.RawStdEncoding.EncodeToString(hash[:])
 }

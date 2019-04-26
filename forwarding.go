@@ -24,8 +24,8 @@ import (
 	"time"
 
 	"github.com/elazarl/goproxy"
-	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/jose"
 	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/oidc"
+	"github.com/oneconcern/keycloak-gatekeeper/internal/providers"
 	"go.uber.org/zap"
 )
 
@@ -124,7 +124,7 @@ func (r *oauthProxy) forwardProxyHandler() func(*http.Request, *http.Response) {
 	// the loop state
 	var state struct {
 		// the access token
-		token jose.JWT
+		token providers.JSONWebToken
 		// the refresh token if any
 		refresh string
 		// the identity of the user

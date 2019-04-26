@@ -5,20 +5,23 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/jonboulle/clockwork"
 
 	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/jose"
 	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/key"
+	"github.com/oneconcern/keycloak-gatekeeper/internal/providers"
 )
 
-func VerifySignature(jwt jose.JWT, keys []key.PublicKey) (bool, error) {
-	jwtBytes := []byte(jwt.Data())
+func VerifySignature(jwt providers.JSONWebToken, keys []key.PublicKey) (bool, error) {
+	cjwt := jwt.(*jose.JWT)
+	jwtBytes := []byte(cjwt.Data())
 	for _, k := range keys {
 		v, err := k.Verifier()
 		if err != nil {
 			return false, err
 		}
-		if v.Verify(jwt.Signature, jwtBytes) == nil {
+		if v.Verify(cjwt.Signature, jwtBytes) == nil {
 			return true, nil
 		}
 	}
@@ -38,7 +41,7 @@ func containsString(needle string, haystack []string) bool {
 
 // Verify claims in accordance with OIDC spec
 // http://openid.net/specs/openid-connect-basic-1_0.html#IDTokenValidation
-func VerifyClaims(jwt jose.JWT, issuer, clientID string) error {
+func VerifyClaims(jwt providers.JSONWebToken, issuer, clientID string) error {
 	now := time.Now().UTC()
 
 	claims, err := jwt.Claims()
@@ -58,9 +61,11 @@ func VerifyClaims(jwt jose.JWT, issuer, clientID string) error {
 	// iss REQUIRED. Issuer Identifier for the Issuer of the response.
 	// The iss value is a case sensitive URL using the https scheme that contains scheme,
 	// host, and optionally, port number and path components and no query or fragment components.
-	if iss, exists := claims["iss"].(string); exists {
-		if !urlEqual(iss, issuer) {
-			return fmt.Errorf("invalid claim value: 'iss'. expected=%s, found=%s.", issuer, iss)
+	if rawIss, exists := claims.Get("iss"); exists {
+		if iss, isString := rawIss.(string); isString {
+			if !urlEqual(iss, issuer) {
+				return fmt.Errorf("invalid claim value: 'iss'. expected=%s, found=%s.", issuer, iss)
+			}
 		}
 	} else {
 		return errors.New("missing claim: 'iss'")
@@ -69,8 +74,10 @@ func VerifyClaims(jwt jose.JWT, issuer, clientID string) error {
 	// iat REQUIRED. Time at which the JWT was issued.
 	// Its value is a JSON number representing the number of seconds from 1970-01-01T0:0:0Z
 	// as measured in UTC until the date/time.
-	if _, exists := claims["iat"].(float64); !exists {
-		return errors.New("missing claim: 'iat'")
+	if rawIat, exists := claims.Get("iat"); exists {
+		if _, isFloat64 := rawIat.(float64); !isFloat64 {
+			return errors.New("missing claim: 'iat'")
+		}
 	}
 
 	// aud REQUIRED. Audience(s) that this ID Token is intended for.
@@ -95,8 +102,9 @@ func VerifyClaims(jwt jose.JWT, issuer, clientID string) error {
 
 // VerifyClientClaims verifies all the required claims are valid for a "client credentials" JWT.
 // Returns the client ID if valid, or an error if invalid.
-func VerifyClientClaims(jwt jose.JWT, issuer string) (string, error) {
+func VerifyClientClaims(jwt providers.JSONWebToken, issuer string) (string, error) {
 	claims, err := jwt.Claims()
+	spew.Dump(claims)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse JWT claims: %v", err)
 	}
@@ -160,7 +168,7 @@ func NewJWTVerifier(issuer, clientID string, syncFunc func() error, keysFunc fun
 	}
 }
 
-func (v *JWTVerifier) Verify(jwt jose.JWT) error {
+func (v *JWTVerifier) Verify(jwt providers.JSONWebToken) error {
 	// Verify claims before verifying the signature. This is an optimization to throw out
 	// tokens we know are invalid without undergoing an expensive signature check and
 	// possibly a re-sync event.

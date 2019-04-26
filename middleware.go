@@ -26,7 +26,7 @@ import (
 	"github.com/PuerkitoBio/purell"
 	"github.com/go-chi/chi/middleware"
 	gcsrf "github.com/gorilla/csrf"
-	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/jose"
+	"github.com/oneconcern/keycloak-gatekeeper/internal/providers"
 	uuid "github.com/satori/go.uuid"
 	"github.com/unrolled/secure"
 	"go.uber.org/zap"
@@ -234,7 +234,7 @@ func (r *oauthProxy) authenticationMiddleware() func(http.Handler) http.Handler 
 					}
 
 					if r.useStore() {
-						go func(old, new jose.JWT, encrypted string) {
+						go func(old, new providers.JSONWebToken, encrypted string) {
 							if err := r.DeleteRefreshToken(old); err != nil {
 								r.log.Error("failed to remove old token", zap.Error(err))
 							}
@@ -264,7 +264,7 @@ func (r *oauthProxy) checkClaim(user *userContext, claimName string, match *rege
 		zap.String("resource", resourceURL),
 	}
 
-	if _, found := user.claims[claimName]; !found {
+	if _, found := user.claims.Get(claimName); !found {
 		r.log.Warn("the token does not have the claim", errFields...)
 		return false
 	}
@@ -429,7 +429,7 @@ func (r *oauthProxy) identityHeadersMiddleware(custom []string) func(http.Handle
 				}
 				// inject any custom claims
 				for claim, header := range customClaims {
-					if claim, found := user.claims[claim]; found {
+					if claim, found := user.claims.Get(claim); found {
 						req.Header.Set(header, fmt.Sprintf("%v", claim))
 					}
 				}

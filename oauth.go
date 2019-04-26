@@ -27,6 +27,7 @@ import (
 	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/jose"
 	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/oauth2"
 	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/oidc"
+	"github.com/oneconcern/keycloak-gatekeeper/internal/providers"
 )
 
 // getOAuthClient returns a oauth2 client from the openid client
@@ -45,7 +46,7 @@ func (r *oauthProxy) getOAuthClient(redirectionURL string) (*oauth2.Client, erro
 }
 
 // verifyToken verify that the token in the user context is valid
-func verifyToken(client *oidc.Client, token jose.JWT) error {
+func verifyToken(client *oidc.Client, token providers.JSONWebToken) error {
 	if err := client.VerifyJWT(token); err != nil {
 		if strings.Contains(err.Error(), "token is expired") {
 			return ErrAccessTokenExpired
@@ -62,17 +63,17 @@ func verifyToken(client *oidc.Client, token jose.JWT) error {
 // NOTE: we may be able to extract the specific (non-standard) claim refresh_expires_in and refresh_expires
 // from response.RawBody.
 // When not available, keycloak provides us with the same (for now) expiry value for ID token.
-func getRefreshedToken(client *oidc.Client, t string) (jose.JWT, string, time.Time, time.Duration, error) {
+func getRefreshedToken(client *oidc.Client, t string) (providers.JSONWebToken, string, time.Time, time.Duration, error) {
 	cl, err := client.OAuthClient()
 	if err != nil {
-		return jose.JWT{}, "", time.Time{}, time.Duration(0), err
+		return nil, "", time.Time{}, time.Duration(0), err
 	}
 	response, err := getToken(cl, oauth2.GrantTypeRefreshToken, t)
 	if err != nil {
 		if strings.Contains(err.Error(), "refresh token has expired") {
-			return jose.JWT{}, "", time.Time{}, time.Duration(0), ErrRefreshTokenExpired
+			return nil, "", time.Time{}, time.Duration(0), ErrRefreshTokenExpired
 		}
-		return jose.JWT{}, "", time.Time{}, time.Duration(0), err
+		return nil, "", time.Time{}, time.Duration(0), err
 	}
 
 	// extracts non-standard claims about refresh token, to get refresh token expiry
@@ -90,7 +91,7 @@ func getRefreshedToken(client *oidc.Client, t string) (jose.JWT, string, time.Ti
 	}
 	token, identity, err := parseToken(response.AccessToken)
 	if err != nil {
-		return jose.JWT{}, "", time.Time{}, time.Duration(0), err
+		return nil, "", time.Time{}, time.Duration(0), err
 	}
 
 	return token, response.RefreshToken, identity.ExpiresAt, refreshExpiresIn, nil
@@ -102,7 +103,7 @@ func exchangeAuthenticationCode(client *oauth2.Client, code string) (oauth2.Toke
 }
 
 // getUserinfo is responsible for getting the userinfo from the IDPD
-func getUserinfo(client *oauth2.Client, endpoint string, token string) (jose.Claims, error) {
+func getUserinfo(client *oauth2.Client, endpoint string, token string) (providers.Claims, error) {
 	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
 	if err != nil {
 		return nil, err
@@ -149,18 +150,18 @@ func getToken(client *oauth2.Client, grantType, code string) (oauth2.TokenRespon
 }
 
 // parseToken retrieves the user identity from the token
-func parseToken(t string) (jose.JWT, *oidc.Identity, error) {
+func parseToken(t string) (providers.JSONWebToken, *oidc.Identity, error) {
 	token, err := jose.ParseJWT(t)
 	if err != nil {
-		return jose.JWT{}, nil, err
+		return nil, nil, err
 	}
 	claims, err := token.Claims()
 	if err != nil {
-		return jose.JWT{}, nil, err
+		return nil, nil, err
 	}
 	identity, err := oidc.IdentityFromClaims(claims)
 	if err != nil {
-		return jose.JWT{}, nil, err
+		return nil, nil, err
 	}
 
 	return token, identity, nil

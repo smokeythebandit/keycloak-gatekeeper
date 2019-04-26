@@ -6,15 +6,15 @@ import (
 	"sync"
 
 	phttp "github.com/oneconcern/keycloak-gatekeeper/internal/oidc/http"
-	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/jose"
+	"github.com/oneconcern/keycloak-gatekeeper/internal/providers"
 )
 
 type TokenRefresher interface {
 	// Verify checks if the provided token is currently valid or not.
-	Verify(jose.JWT) error
+	Verify(providers.JSONWebToken) error
 
 	// Refresh attempts to authenticate and retrieve a new token.
-	Refresh() (jose.JWT, error)
+	Refresh() (providers.JSONWebToken, error)
 }
 
 type ClientCredsTokenRefresher struct {
@@ -22,12 +22,12 @@ type ClientCredsTokenRefresher struct {
 	OIDCClient *Client
 }
 
-func (c *ClientCredsTokenRefresher) Verify(jwt jose.JWT) (err error) {
+func (c *ClientCredsTokenRefresher) Verify(jwt providers.JSONWebToken) (err error) {
 	_, err = VerifyClientClaims(jwt, c.Issuer)
 	return
 }
 
-func (c *ClientCredsTokenRefresher) Refresh() (jwt jose.JWT, err error) {
+func (c *ClientCredsTokenRefresher) Refresh() (jwt providers.JSONWebToken, err error) {
 	if err = c.OIDCClient.Healthy(); err != nil {
 		err = fmt.Errorf("unable to authenticate, unhealthy OIDC client: %v", err)
 		return
@@ -47,10 +47,10 @@ type AuthenticatedTransport struct {
 	http.RoundTripper
 
 	mu  sync.Mutex
-	jwt jose.JWT
+	jwt providers.JSONWebToken
 }
 
-func (t *AuthenticatedTransport) verifiedJWT() (jose.JWT, error) {
+func (t *AuthenticatedTransport) verifiedJWT() (providers.JSONWebToken, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -60,7 +60,7 @@ func (t *AuthenticatedTransport) verifiedJWT() (jose.JWT, error) {
 
 	jwt, err := t.TokenRefresher.Refresh()
 	if err != nil {
-		return jose.JWT{}, fmt.Errorf("unable to acquire valid JWT: %v", err)
+		return nil, fmt.Errorf("unable to acquire valid JWT: %v", err)
 	}
 
 	t.jwt = jwt
@@ -69,7 +69,7 @@ func (t *AuthenticatedTransport) verifiedJWT() (jose.JWT, error) {
 
 // SetJWT sets the JWT held by the Transport.
 // This is useful for cases in which you want to set an initial JWT.
-func (t *AuthenticatedTransport) SetJWT(jwt jose.JWT) {
+func (t *AuthenticatedTransport) SetJWT(jwt providers.JSONWebToken) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 

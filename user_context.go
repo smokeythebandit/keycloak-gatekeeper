@@ -20,12 +20,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/jose"
 	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/oidc"
+	"github.com/oneconcern/keycloak-gatekeeper/internal/providers"
 )
 
 // extractIdentity parse the jwt token and extracts the various elements is order to construct
-func extractIdentity(token jose.JWT) (*userContext, error) {
+func extractIdentity(token providers.JSONWebToken) (*userContext, error) {
 	claims, err := token.Claims()
 	if err != nil {
 		return nil, err
@@ -55,21 +55,25 @@ func extractIdentity(token jose.JWT) (*userContext, error) {
 
 	// @step: extract the realm roles
 	var roleList []string
-	if realmRoles, found := claims[claimRealmAccess].(map[string]interface{}); found {
-		if roles, found := realmRoles[claimResourceRoles]; found {
-			for _, r := range roles.([]interface{}) {
-				roleList = append(roleList, fmt.Sprintf("%s", r))
+	if raw, found := claims.Get(claimRealmAccess); found {
+		if realmRoles, ok := raw.(map[string]interface{}); ok {
+			if roles, found := realmRoles[claimResourceRoles]; found {
+				for _, r := range roles.([]interface{}) {
+					roleList = append(roleList, fmt.Sprintf("%s", r))
+				}
 			}
 		}
 	}
 
 	// @step: extract the client roles from the access token
-	if accesses, found := claims[claimResourceAccess].(map[string]interface{}); found {
-		for name, list := range accesses {
-			scopes := list.(map[string]interface{})
-			if roles, found := scopes[claimResourceRoles]; found {
-				for _, r := range roles.([]interface{}) {
-					roleList = append(roleList, fmt.Sprintf("%s:%s", name, r))
+	if raw, found := claims.Get(claimResourceAccess); found {
+		if accesses, ok := raw.(map[string]interface{}); ok {
+			for name, list := range accesses {
+				scopes := list.(map[string]interface{})
+				if roles, found := scopes[claimResourceRoles]; found {
+					for _, r := range roles.([]interface{}) {
+						roleList = append(roleList, fmt.Sprintf("%s:%s", name, r))
+					}
 				}
 			}
 		}

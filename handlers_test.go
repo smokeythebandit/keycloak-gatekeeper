@@ -200,7 +200,7 @@ func TestTokenHandler(t *testing.T) {
 		{
 			URI:             uri,
 			HasToken:        true,
-			RawToken:        (&goodToken).Encode(),
+			RawToken:        goodToken.Encode(),
 			ExpectedCode:    http.StatusOK,
 			ExpectedHeaders: map[string]string{"Content-Type": jsonMime},
 		},

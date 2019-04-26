@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/jose"
+	"github.com/oneconcern/keycloak-gatekeeper/internal/providers"
 	"go.uber.org/zap"
 )
 
@@ -61,14 +61,14 @@ func (r *oauthProxy) useStore() bool {
 }
 
 // StoreRefreshToken the token to the store
-func (r *oauthProxy) StoreRefreshToken(token jose.JWT, value string) error {
-	return r.store.Set(getHashKey(&token), value)
+func (r *oauthProxy) StoreRefreshToken(token providers.JSONWebToken, value string) error {
+	return r.store.Set(getHashKey(token), value)
 }
 
 // Get retrieves a token from the store, the key we are using here is the access token
-func (r *oauthProxy) GetRefreshToken(token jose.JWT) (string, error) {
+func (r *oauthProxy) GetRefreshToken(token providers.JSONWebToken) (string, error) {
 	// step: the key is the access token
-	v, err := r.store.Get(getHashKey(&token))
+	v, err := r.store.Get(getHashKey(token))
 	if err != nil {
 		return v, err
 	}
@@ -80,8 +80,8 @@ func (r *oauthProxy) GetRefreshToken(token jose.JWT) (string, error) {
 }
 
 // DeleteRefreshToken removes a key from the store
-func (r *oauthProxy) DeleteRefreshToken(token jose.JWT) error {
-	if err := r.store.Delete(getHashKey(&token)); err != nil {
+func (r *oauthProxy) DeleteRefreshToken(token providers.JSONWebToken) error {
+	if err := r.store.Delete(getHashKey(token)); err != nil {
 		r.log.Error("unable to delete token", zap.Error(err))
 
 		return err

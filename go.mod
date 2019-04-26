@@ -7,6 +7,7 @@ require (
 	github.com/boltdb/bolt v1.3.1
 	github.com/codegangsta/negroni v1.0.0 // indirect
 	github.com/coreos/pkg v0.0.0-20161026222926-447b7ec906e5
+	github.com/davecgh/go-spew v1.1.1
 	github.com/elazarl/goproxy v0.0.0-20181111060418-2ce16c963a8a
 	github.com/fsnotify/fsnotify v1.4.7
 	github.com/garyburd/redigo v1.6.0 // indirect

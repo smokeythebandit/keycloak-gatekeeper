@@ -5,7 +5,7 @@ package main
 import (
 	"errors"
 
-	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/jose"
+	"github.com/oneconcern/keycloak-gatekeeper/internal/providers"
 )
 
 func (r *Config) isStoreValid() error {
@@ -23,7 +23,7 @@ func (r *oauthProxy) useStore() bool {
 	return false
 }
 
-func (r *oauthProxy) StoreRefreshToken(token jose.JWT, value string) error {
+func (r *oauthProxy) StoreRefreshToken(token providers.JSONWebToken, value string) error {
 	return nil
 }
 
@@ -31,10 +31,10 @@ func (r *oauthProxy) CloseStore() error {
 	return nil
 }
 
-func (r *oauthProxy) GetRefreshToken(token jose.JWT) (string, error) {
+func (r *oauthProxy) GetRefreshToken(token providers.JSONWebToken) (string, error) {
 	return "", nil
 }
 
-func (r *oauthProxy) DeleteRefreshToken(token jose.JWT) error {
+func (r *oauthProxy) DeleteRefreshToken(token providers.JSONWebToken) error {
 	return nil
 }

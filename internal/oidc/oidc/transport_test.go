@@ -67,7 +67,7 @@ func TestAuthenticatedTransportVerifiedJWT(t *testing.T) {
 				refresh: func() (providers.JSONWebToken, error) { return &jose.JWT{}, errors.New("fail!") },
 			},
 			startJWT:  &jose.JWT{RawPayload: "1"},
-			wantJWT:   &jose.JWT{},
+			wantJWT:   nil,
 			wantError: errors.New("unable to acquire valid JWT: fail!"),
 		},
 	}

@@ -106,8 +106,8 @@ func (r *oauthProxy) getAccessCookieExpiration(token providers.JSONWebToken, ref
 	// however we can decode the refresh token, we will set the duration to the duration of the
 	// refresh token
 	duration := r.config.AccessTokenDuration
-	if _, ident, err := parseToken(refresh); err == nil {
-		delta := time.Until(ident.ExpiresAt)
+	if _, ident, err := parseToken(r.client, refresh); err == nil {
+		delta := time.Until(ident.ExpiresAt())
 		if delta > 0 {
 			duration = delta
 		}

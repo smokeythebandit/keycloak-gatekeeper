@@ -1,4 +1,4 @@
-package oidc
+package config
 
 import (
 	"encoding/json"
@@ -16,6 +16,7 @@ import (
 
 	phttp "github.com/oneconcern/keycloak-gatekeeper/internal/oidc/http"
 	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/oauth2"
+	"github.com/oneconcern/keycloak-gatekeeper/internal/providers"
 )
 
 const (
@@ -24,22 +25,37 @@ const (
 	// value for each client (pairwise).
 	//
 	// See: http://openid.net/specs/openid-connect-core-1_0.html#SubjectIDTypes
-	SubjectTypePublic   = "public"
+
+	// SubjectTypePublic ...
+	SubjectTypePublic = "public"
+
+	// SubjectTypePairwise ...
 	SubjectTypePairwise = "pairwise"
 )
 
 var (
 	// Default values for omitted provider config fields.
 	//
-	// Use ProviderConfig's Defaults method to fill a provider config with these values.
-	DefaultGrantTypesSupported               = []string{oauth2.GrantTypeAuthCode, oauth2.GrantTypeImplicit}
-	DefaultResponseModesSupported            = []string{"query", "fragment"}
+	// Use providers.ProviderConfig's Defaults method to fill a provider config with these values.
+
+	// DefaultGrantTypesSupported ...
+	DefaultGrantTypesSupported = []string{oauth2.GrantTypeAuthCode, oauth2.GrantTypeImplicit}
+
+	// DefaultResponseModesSupported ...
+	DefaultResponseModesSupported = []string{"query", "fragment"}
+
+	// DefaultTokenEndpointAuthMethodsSupported ...
 	DefaultTokenEndpointAuthMethodsSupported = []string{oauth2.AuthMethodClientSecretBasic}
-	DefaultClaimTypesSupported               = []string{"normal"}
+
+	// DefaultClaimTypesSupported ...
+	DefaultClaimTypesSupported = []string{"normal"}
 )
 
 const (
+	// MaximumProviderConfigSyncInterval ...
 	MaximumProviderConfigSyncInterval = 24 * time.Hour
+
+	// MinimumProviderConfigSyncInterval ...
 	MinimumProviderConfigSyncInterval = time.Minute
 
 	discoveryConfigPath = "/.well-known/openid-configuration"
@@ -49,78 +65,17 @@ const (
 var minimumProviderConfigSyncInterval = MinimumProviderConfigSyncInterval
 
 var (
-	// Ensure ProviderConfig satisfies these interfaces.
+	// Ensure providers.ProviderConfig satisfies these interfaces.
 	_ json.Marshaler   = &ProviderConfig{}
 	_ json.Unmarshaler = &ProviderConfig{}
 )
 
-// ProviderConfig represents the OpenID Provider Metadata specifying what
-// configurations a provider supports.
-//
-// See: http://openid.net/specs/openid-connect-discovery-1_0.html#ProviderMetadata
+// ProviderConfig ...
 type ProviderConfig struct {
-	Issuer               *url.URL // Required
-	AuthEndpoint         *url.URL // Required
-	TokenEndpoint        *url.URL // Required if grant types other than "implicit" are supported
-	UserInfoEndpoint     *url.URL
-	KeysEndpoint         *url.URL // Required
-	RegistrationEndpoint *url.URL
-	EndSessionEndpoint   *url.URL
-	CheckSessionIFrame   *url.URL
-
-	// Servers MAY choose not to advertise some supported scope values even when this
-	// parameter is used, although those defined in OpenID Core SHOULD be listed, if supported.
-	ScopesSupported []string
-	// OAuth2.0 response types supported.
-	ResponseTypesSupported []string // Required
-	// OAuth2.0 response modes supported.
-	//
-	// If omitted, defaults to DefaultResponseModesSupported.
-	ResponseModesSupported []string
-	// OAuth2.0 grant types supported.
-	//
-	// If omitted, defaults to DefaultGrantTypesSupported.
-	GrantTypesSupported []string
-	ACRValuesSupported  []string
-	// SubjectTypesSupported specifies strategies for providing values for the sub claim.
-	SubjectTypesSupported []string // Required
-
-	// JWA signing and encryption algorith values supported for ID tokens.
-	IDTokenSigningAlgValues    []string // Required
-	IDTokenEncryptionAlgValues []string
-	IDTokenEncryptionEncValues []string
-
-	// JWA signing and encryption algorith values supported for user info responses.
-	UserInfoSigningAlgValues    []string
-	UserInfoEncryptionAlgValues []string
-	UserInfoEncryptionEncValues []string
-
-	// JWA signing and encryption algorith values supported for request objects.
-	ReqObjSigningAlgValues    []string
-	ReqObjEncryptionAlgValues []string
-	ReqObjEncryptionEncValues []string
-
-	TokenEndpointAuthMethodsSupported          []string
-	TokenEndpointAuthSigningAlgValuesSupported []string
-	DisplayValuesSupported                     []string
-	ClaimTypesSupported                        []string
-	ClaimsSupported                            []string
-	ServiceDocs                                *url.URL
-	ClaimsLocalsSupported                      []string
-	UILocalsSupported                          []string
-	ClaimsParameterSupported                   bool
-	RequestParameterSupported                  bool
-	RequestURIParamaterSupported               bool
-	RequireRequestURIRegistration              bool
-
-	Policy         *url.URL
-	TermsOfService *url.URL
-
-	// Not part of the OpenID Provider Metadata
-	ExpiresAt time.Time
+	providers.ProviderConfig
 }
 
-// Defaults returns a shallow copy of ProviderConfig with default
+// Defaults returns a shallow copy of providers.ProviderConfig with default
 // values replacing omitted fields.
 //
 //     var cfg oidc.ProviderConfig
@@ -140,11 +95,13 @@ func (p ProviderConfig) Defaults() ProviderConfig {
 	return p
 }
 
+// MarshalJSON ...
 func (p *ProviderConfig) MarshalJSON() ([]byte, error) {
 	e := p.toEncodableStruct()
 	return json.Marshal(&e)
 }
 
+// UnmarshalJSON ...
 func (p *ProviderConfig) UnmarshalJSON(data []byte) error {
 	var e encodableProviderConfig
 	if err := json.Unmarshal(data, &e); err != nil {
@@ -211,88 +168,90 @@ type encodableProviderConfig struct {
 	TermsOfService string `json:"op_tos_uri,omitempty"`
 }
 
-func (cfg ProviderConfig) toEncodableStruct() encodableProviderConfig {
+func (p ProviderConfig) toEncodableStruct() encodableProviderConfig {
 	return encodableProviderConfig{
-		Issuer:                                     uriToString(cfg.Issuer),
-		AuthEndpoint:                               uriToString(cfg.AuthEndpoint),
-		TokenEndpoint:                              uriToString(cfg.TokenEndpoint),
-		UserInfoEndpoint:                           uriToString(cfg.UserInfoEndpoint),
-		KeysEndpoint:                               uriToString(cfg.KeysEndpoint),
-		RegistrationEndpoint:                       uriToString(cfg.RegistrationEndpoint),
-		EndSessionEndpoint:                         uriToString(cfg.EndSessionEndpoint),
-		CheckSessionIFrame:                         uriToString(cfg.CheckSessionIFrame),
-		ScopesSupported:                            cfg.ScopesSupported,
-		ResponseTypesSupported:                     cfg.ResponseTypesSupported,
-		ResponseModesSupported:                     cfg.ResponseModesSupported,
-		GrantTypesSupported:                        cfg.GrantTypesSupported,
-		ACRValuesSupported:                         cfg.ACRValuesSupported,
-		SubjectTypesSupported:                      cfg.SubjectTypesSupported,
-		IDTokenSigningAlgValues:                    cfg.IDTokenSigningAlgValues,
-		IDTokenEncryptionAlgValues:                 cfg.IDTokenEncryptionAlgValues,
-		IDTokenEncryptionEncValues:                 cfg.IDTokenEncryptionEncValues,
-		UserInfoSigningAlgValues:                   cfg.UserInfoSigningAlgValues,
-		UserInfoEncryptionAlgValues:                cfg.UserInfoEncryptionAlgValues,
-		UserInfoEncryptionEncValues:                cfg.UserInfoEncryptionEncValues,
-		ReqObjSigningAlgValues:                     cfg.ReqObjSigningAlgValues,
-		ReqObjEncryptionAlgValues:                  cfg.ReqObjEncryptionAlgValues,
-		ReqObjEncryptionEncValues:                  cfg.ReqObjEncryptionEncValues,
-		TokenEndpointAuthMethodsSupported:          cfg.TokenEndpointAuthMethodsSupported,
-		TokenEndpointAuthSigningAlgValuesSupported: cfg.TokenEndpointAuthSigningAlgValuesSupported,
-		DisplayValuesSupported:                     cfg.DisplayValuesSupported,
-		ClaimTypesSupported:                        cfg.ClaimTypesSupported,
-		ClaimsSupported:                            cfg.ClaimsSupported,
-		ServiceDocs:                                uriToString(cfg.ServiceDocs),
-		ClaimsLocalsSupported:                      cfg.ClaimsLocalsSupported,
-		UILocalsSupported:                          cfg.UILocalsSupported,
-		ClaimsParameterSupported:                   cfg.ClaimsParameterSupported,
-		RequestParameterSupported:                  cfg.RequestParameterSupported,
-		RequestURIParamaterSupported:               cfg.RequestURIParamaterSupported,
-		RequireRequestURIRegistration:              cfg.RequireRequestURIRegistration,
-		Policy:         uriToString(cfg.Policy),
-		TermsOfService: uriToString(cfg.TermsOfService),
+		Issuer:                                     uriToString(p.Issuer),
+		AuthEndpoint:                               uriToString(p.AuthEndpoint),
+		TokenEndpoint:                              uriToString(p.TokenEndpoint),
+		UserInfoEndpoint:                           uriToString(p.UserInfoEndpoint),
+		KeysEndpoint:                               uriToString(p.KeysEndpoint),
+		RegistrationEndpoint:                       uriToString(p.RegistrationEndpoint),
+		EndSessionEndpoint:                         uriToString(p.EndSessionEndpoint),
+		CheckSessionIFrame:                         uriToString(p.CheckSessionIFrame),
+		ScopesSupported:                            p.ScopesSupported,
+		ResponseTypesSupported:                     p.ResponseTypesSupported,
+		ResponseModesSupported:                     p.ResponseModesSupported,
+		GrantTypesSupported:                        p.GrantTypesSupported,
+		ACRValuesSupported:                         p.ACRValuesSupported,
+		SubjectTypesSupported:                      p.SubjectTypesSupported,
+		IDTokenSigningAlgValues:                    p.IDTokenSigningAlgValues,
+		IDTokenEncryptionAlgValues:                 p.IDTokenEncryptionAlgValues,
+		IDTokenEncryptionEncValues:                 p.IDTokenEncryptionEncValues,
+		UserInfoSigningAlgValues:                   p.UserInfoSigningAlgValues,
+		UserInfoEncryptionAlgValues:                p.UserInfoEncryptionAlgValues,
+		UserInfoEncryptionEncValues:                p.UserInfoEncryptionEncValues,
+		ReqObjSigningAlgValues:                     p.ReqObjSigningAlgValues,
+		ReqObjEncryptionAlgValues:                  p.ReqObjEncryptionAlgValues,
+		ReqObjEncryptionEncValues:                  p.ReqObjEncryptionEncValues,
+		TokenEndpointAuthMethodsSupported:          p.TokenEndpointAuthMethodsSupported,
+		TokenEndpointAuthSigningAlgValuesSupported: p.TokenEndpointAuthSigningAlgValuesSupported,
+		DisplayValuesSupported:                     p.DisplayValuesSupported,
+		ClaimTypesSupported:                        p.ClaimTypesSupported,
+		ClaimsSupported:                            p.ClaimsSupported,
+		ServiceDocs:                                uriToString(p.ServiceDocs),
+		ClaimsLocalsSupported:                      p.ClaimsLocalsSupported,
+		UILocalsSupported:                          p.UILocalsSupported,
+		ClaimsParameterSupported:                   p.ClaimsParameterSupported,
+		RequestParameterSupported:                  p.RequestParameterSupported,
+		RequestURIParamaterSupported:               p.RequestURIParamaterSupported,
+		RequireRequestURIRegistration:              p.RequireRequestURIRegistration,
+		Policy:                                     uriToString(p.Policy),
+		TermsOfService:                             uriToString(p.TermsOfService),
 	}
 }
 
 func (e encodableProviderConfig) toStruct() (ProviderConfig, error) {
 	p := stickyErrParser{}
 	conf := ProviderConfig{
-		Issuer:                                     p.parseURI(e.Issuer, "issuer"),
-		AuthEndpoint:                               p.parseURI(e.AuthEndpoint, "authorization_endpoint"),
-		TokenEndpoint:                              p.parseURI(e.TokenEndpoint, "token_endpoint"),
-		UserInfoEndpoint:                           p.parseURI(e.UserInfoEndpoint, "userinfo_endpoint"),
-		KeysEndpoint:                               p.parseURI(e.KeysEndpoint, "jwks_uri"),
-		RegistrationEndpoint:                       p.parseURI(e.RegistrationEndpoint, "registration_endpoint"),
-		EndSessionEndpoint:                         p.parseURI(e.EndSessionEndpoint, "end_session_endpoint"),
-		CheckSessionIFrame:                         p.parseURI(e.CheckSessionIFrame, "check_session_iframe"),
-		ScopesSupported:                            e.ScopesSupported,
-		ResponseTypesSupported:                     e.ResponseTypesSupported,
-		ResponseModesSupported:                     e.ResponseModesSupported,
-		GrantTypesSupported:                        e.GrantTypesSupported,
-		ACRValuesSupported:                         e.ACRValuesSupported,
-		SubjectTypesSupported:                      e.SubjectTypesSupported,
-		IDTokenSigningAlgValues:                    e.IDTokenSigningAlgValues,
-		IDTokenEncryptionAlgValues:                 e.IDTokenEncryptionAlgValues,
-		IDTokenEncryptionEncValues:                 e.IDTokenEncryptionEncValues,
-		UserInfoSigningAlgValues:                   e.UserInfoSigningAlgValues,
-		UserInfoEncryptionAlgValues:                e.UserInfoEncryptionAlgValues,
-		UserInfoEncryptionEncValues:                e.UserInfoEncryptionEncValues,
-		ReqObjSigningAlgValues:                     e.ReqObjSigningAlgValues,
-		ReqObjEncryptionAlgValues:                  e.ReqObjEncryptionAlgValues,
-		ReqObjEncryptionEncValues:                  e.ReqObjEncryptionEncValues,
-		TokenEndpointAuthMethodsSupported:          e.TokenEndpointAuthMethodsSupported,
-		TokenEndpointAuthSigningAlgValuesSupported: e.TokenEndpointAuthSigningAlgValuesSupported,
-		DisplayValuesSupported:                     e.DisplayValuesSupported,
-		ClaimTypesSupported:                        e.ClaimTypesSupported,
-		ClaimsSupported:                            e.ClaimsSupported,
-		ServiceDocs:                                p.parseURI(e.ServiceDocs, "service_documentation"),
-		ClaimsLocalsSupported:                      e.ClaimsLocalsSupported,
-		UILocalsSupported:                          e.UILocalsSupported,
-		ClaimsParameterSupported:                   e.ClaimsParameterSupported,
-		RequestParameterSupported:                  e.RequestParameterSupported,
-		RequestURIParamaterSupported:               e.RequestURIParamaterSupported,
-		RequireRequestURIRegistration:              e.RequireRequestURIRegistration,
-		Policy:         p.parseURI(e.Policy, "op_policy-uri"),
-		TermsOfService: p.parseURI(e.TermsOfService, "op_tos_uri"),
+		ProviderConfig: providers.ProviderConfig{
+			Issuer:                                     p.parseURI(e.Issuer, "issuer"),
+			AuthEndpoint:                               p.parseURI(e.AuthEndpoint, "authorization_endpoint"),
+			TokenEndpoint:                              p.parseURI(e.TokenEndpoint, "token_endpoint"),
+			UserInfoEndpoint:                           p.parseURI(e.UserInfoEndpoint, "userinfo_endpoint"),
+			KeysEndpoint:                               p.parseURI(e.KeysEndpoint, "jwks_uri"),
+			RegistrationEndpoint:                       p.parseURI(e.RegistrationEndpoint, "registration_endpoint"),
+			EndSessionEndpoint:                         p.parseURI(e.EndSessionEndpoint, "end_session_endpoint"),
+			CheckSessionIFrame:                         p.parseURI(e.CheckSessionIFrame, "check_session_iframe"),
+			ScopesSupported:                            e.ScopesSupported,
+			ResponseTypesSupported:                     e.ResponseTypesSupported,
+			ResponseModesSupported:                     e.ResponseModesSupported,
+			GrantTypesSupported:                        e.GrantTypesSupported,
+			ACRValuesSupported:                         e.ACRValuesSupported,
+			SubjectTypesSupported:                      e.SubjectTypesSupported,
+			IDTokenSigningAlgValues:                    e.IDTokenSigningAlgValues,
+			IDTokenEncryptionAlgValues:                 e.IDTokenEncryptionAlgValues,
+			IDTokenEncryptionEncValues:                 e.IDTokenEncryptionEncValues,
+			UserInfoSigningAlgValues:                   e.UserInfoSigningAlgValues,
+			UserInfoEncryptionAlgValues:                e.UserInfoEncryptionAlgValues,
+			UserInfoEncryptionEncValues:                e.UserInfoEncryptionEncValues,
+			ReqObjSigningAlgValues:                     e.ReqObjSigningAlgValues,
+			ReqObjEncryptionAlgValues:                  e.ReqObjEncryptionAlgValues,
+			ReqObjEncryptionEncValues:                  e.ReqObjEncryptionEncValues,
+			TokenEndpointAuthMethodsSupported:          e.TokenEndpointAuthMethodsSupported,
+			TokenEndpointAuthSigningAlgValuesSupported: e.TokenEndpointAuthSigningAlgValuesSupported,
+			DisplayValuesSupported:                     e.DisplayValuesSupported,
+			ClaimTypesSupported:                        e.ClaimTypesSupported,
+			ClaimsSupported:                            e.ClaimsSupported,
+			ServiceDocs:                                p.parseURI(e.ServiceDocs, "service_documentation"),
+			ClaimsLocalsSupported:                      e.ClaimsLocalsSupported,
+			UILocalsSupported:                          e.UILocalsSupported,
+			ClaimsParameterSupported:                   e.ClaimsParameterSupported,
+			RequestParameterSupported:                  e.RequestParameterSupported,
+			RequestURIParamaterSupported:               e.RequestURIParamaterSupported,
+			RequireRequestURIRegistration:              e.RequireRequestURIRegistration,
+			Policy:                                     p.parseURI(e.Policy, "op_policy-uri"),
+			TermsOfService:                             p.parseURI(e.TermsOfService, "op_tos_uri"),
+		},
 	}
 	if p.firstErr != nil {
 		return ProviderConfig{}, p.firstErr
@@ -300,9 +259,9 @@ func (e encodableProviderConfig) toStruct() (ProviderConfig, error) {
 	return conf, nil
 }
 
-// Empty returns if a ProviderConfig holds no information.
+// Empty returns if a providers.ProviderConfig holds no information.
 //
-// This case generally indicates a ProviderConfigGetter has experienced an error
+// This case generally indicates a providers.ProviderConfigGetter has experienced an error
 // and has nothing to report.
 func (p ProviderConfig) Empty() bool {
 	return p.Issuer == nil
@@ -317,7 +276,7 @@ func contains(sli []string, ele string) bool {
 	return false
 }
 
-// Valid determines if a ProviderConfig conforms with the OIDC specification.
+// Valid determines if a providers.ProviderConfig conforms with the OIDC specification.
 // If Valid returns successfully it guarantees required field are non-nil and
 // URLs are well formed.
 //
@@ -389,8 +348,9 @@ func (p ProviderConfig) Valid() error {
 	return nil
 }
 
+/*
 // Supports determines if provider supports a client given their respective metadata.
-func (p ProviderConfig) Supports(c ClientMetadata) error {
+func (p ProviderConfig) Supports(c oidc.ClientMetadata) error {
 	if err := p.Valid(); err != nil {
 		return fmt.Errorf("invalid provider config: %v", err)
 	}
@@ -458,7 +418,9 @@ func (p ProviderConfig) Supports(c ClientMetadata) error {
 
 	return nil
 }
+*/
 
+// SupportsGrantType ...
 func (p ProviderConfig) SupportsGrantType(grantType string) bool {
 	var supported []string
 	if len(p.GrantTypesSupported) == 0 {
@@ -475,14 +437,17 @@ func (p ProviderConfig) SupportsGrantType(grantType string) bool {
 	return false
 }
 
+// ProviderConfigGetter ...
 type ProviderConfigGetter interface {
 	Get() (ProviderConfig, error)
 }
 
+// ProviderConfigSetter ...
 type ProviderConfigSetter interface {
 	Set(ProviderConfig) error
 }
 
+// ProviderConfigSyncer ...
 type ProviderConfigSyncer struct {
 	from  ProviderConfigGetter
 	to    ProviderConfigSetter
@@ -492,6 +457,7 @@ type ProviderConfigSyncer struct {
 	initialSyncWait sync.WaitGroup
 }
 
+// NewProviderConfigSyncer ...
 func NewProviderConfigSyncer(from ProviderConfigGetter, to ProviderConfigSetter) *ProviderConfigSyncer {
 	return &ProviderConfigSyncer{
 		from:  from,
@@ -500,6 +466,7 @@ func NewProviderConfigSyncer(from ProviderConfigGetter, to ProviderConfigSetter)
 	}
 }
 
+// Run ...
 func (s *ProviderConfigSyncer) Run() chan struct{} {
 	stop := make(chan struct{})
 

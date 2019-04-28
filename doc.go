@@ -16,7 +16,6 @@ limitations under the License.
 package main
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -116,23 +115,6 @@ var (
 		},
 		[]string{"code", "method"},
 	)
-)
-
-var (
-	// ErrSessionNotFound no session found in the request
-	ErrSessionNotFound = errors.New("authentication session not found")
-	// ErrNoSessionStateFound means there was not persist state
-	ErrNoSessionStateFound = errors.New("no session state found")
-	// ErrInvalidSession the session is invalid
-	ErrInvalidSession = errors.New("invalid session identifier")
-	// ErrAccessTokenExpired indicates the access token has expired
-	ErrAccessTokenExpired = errors.New("the access token has expired")
-	// ErrRefreshTokenExpired indicates the refresh token as expired
-	ErrRefreshTokenExpired = errors.New("the refresh token has expired")
-	// ErrNoTokenAudience indicates their is not audience in the token
-	ErrNoTokenAudience = errors.New("the token does not audience in claims")
-	// ErrDecryption indicates we can't decrypt the token
-	ErrDecryption = errors.New("failed to decrypt token")
 )
 
 // Config is the configuration for the proxy

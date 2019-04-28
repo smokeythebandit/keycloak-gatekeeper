@@ -31,7 +31,6 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/jose"
-	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/oauth2"
 	"github.com/oneconcern/keycloak-gatekeeper/internal/providers"
 	"github.com/stretchr/testify/assert"
 )
@@ -207,7 +206,7 @@ func (r *fakeAuthServer) userInfoHandler(w http.ResponseWriter, req *http.Reques
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	decoded, err := jose.ParseJWT(items[1])
+	decoded, err := parseJWT(items[1])
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -243,7 +242,7 @@ func (r *fakeAuthServer) tokenHandler(w http.ResponseWriter, req *http.Request) 
 	}
 
 	switch req.FormValue("grant_type") {
-	case oauth2.GrantTypeUserCreds:
+	case GrantTypeUserCreds:
 		username := req.FormValue("username")
 		password := req.FormValue("password")
 		if username == "" || password == "" {
@@ -263,9 +262,9 @@ func (r *fakeAuthServer) tokenHandler(w http.ResponseWriter, req *http.Request) 
 			"error":             "invalid_grant",
 			"error_description": "invalid user credentials",
 		})
-	case oauth2.GrantTypeRefreshToken:
+	case GrantTypeRefreshToken:
 		fallthrough
-	case oauth2.GrantTypeAuthCode:
+	case GrantTypeAuthCode:
 		renderJSON(http.StatusOK, w, req, tokenResponse{
 			IDToken:      token.Encode(),
 			AccessToken:  token.Encode(),

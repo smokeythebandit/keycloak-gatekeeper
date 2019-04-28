@@ -8,10 +8,26 @@ import (
 )
 
 type Identity struct {
-	ID        string
-	Name      string
-	Email     string
-	ExpiresAt time.Time
+	id        string
+	name      string
+	email     string
+	expiresAt time.Time
+}
+
+func (i *Identity) ID() string {
+	return i.id
+}
+
+func (i *Identity) Name() string {
+	return i.name
+}
+
+func (i *Identity) Email() string {
+	return i.email
+}
+
+func (i *Identity) ExpiresAt() time.Time {
+	return i.expiresAt
 }
 
 func IdentityFromClaims(claims providers.Claims) (*Identity, error) {
@@ -23,13 +39,13 @@ func IdentityFromClaims(claims providers.Claims) (*Identity, error) {
 	var err error
 	var ok bool
 
-	if ident.ID, ok, err = claims.StringClaim("sub"); err != nil {
+	if ident.id, ok, err = claims.StringClaim("sub"); err != nil {
 		return nil, err
 	} else if !ok {
 		return nil, errors.New("missing required claim: sub")
 	}
 
-	if ident.Email, _, err = claims.StringClaim("email"); err != nil {
+	if ident.email, _, err = claims.StringClaim("email"); err != nil {
 		return nil, err
 	}
 
@@ -37,7 +53,7 @@ func IdentityFromClaims(claims providers.Claims) (*Identity, error) {
 	if err != nil {
 		return nil, err
 	} else if ok {
-		ident.ExpiresAt = exp
+		ident.expiresAt = exp
 	}
 
 	return &ident, nil

@@ -21,7 +21,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/jose"
 	"go.uber.org/zap"
 )
 
@@ -38,11 +37,11 @@ func (r *oauthProxy) getIdentity(req *http.Request) (*userContext, error) {
 			return nil, ErrDecryption
 		}
 	}
-	token, err := jose.ParseJWT(access)
+	token, err := parseJWT(access)
 	if err != nil {
 		return nil, err
 	}
-	user, err := extractIdentity(token)
+	user, err := extractIdentity(r.client, token)
 	if err != nil {
 		return nil, err
 	}

@@ -20,17 +20,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/oidc"
 	"github.com/oneconcern/keycloak-gatekeeper/internal/providers"
 )
 
 // extractIdentity parse the jwt token and extracts the various elements is order to construct
-func extractIdentity(token providers.JSONWebToken) (*userContext, error) {
+func extractIdentity(client providers.OIDCClient, token providers.JSONWebToken) (*userContext, error) {
 	claims, err := token.Claims()
 	if err != nil {
 		return nil, err
 	}
-	identity, err := oidc.IdentityFromClaims(claims)
+	identity, err := client.IdentityFromClaims(claims)
 	if err != nil {
 		return nil, err
 	}
@@ -38,7 +37,7 @@ func extractIdentity(token providers.JSONWebToken) (*userContext, error) {
 	// @step: ensure we have and can extract the preferred name of the user, if not, we set to the ID
 	preferredName, found, err := claims.StringClaim(claimPreferredName)
 	if err != nil || !found {
-		preferredName = identity.Email
+		preferredName = identity.Email()
 	}
 
 	var audiences []string
@@ -54,6 +53,7 @@ func extractIdentity(token providers.JSONWebToken) (*userContext, error) {
 	}
 
 	// @step: extract the realm roles
+	// TODO: move to a keycloak specific pkg
 	var roleList []string
 	if raw, found := claims.Get(claimRealmAccess); found {
 		if realmRoles, ok := raw.(map[string]interface{}); ok {
@@ -66,6 +66,7 @@ func extractIdentity(token providers.JSONWebToken) (*userContext, error) {
 	}
 
 	// @step: extract the client roles from the access token
+	// TODO: move to a keycloak specific pkg
 	if raw, found := claims.Get(claimResourceAccess); found {
 		if accesses, ok := raw.(map[string]interface{}); ok {
 			for name, list := range accesses {
@@ -80,6 +81,7 @@ func extractIdentity(token providers.JSONWebToken) (*userContext, error) {
 	}
 
 	// @step: extract any group information from the tokens
+	// TODO: move to a keycloak specific pkg
 	groups, _, err := claims.StringsClaim(claimGroups)
 	if err != nil {
 		return nil, err
@@ -88,10 +90,10 @@ func extractIdentity(token providers.JSONWebToken) (*userContext, error) {
 	return &userContext{
 		audiences:     audiences,
 		claims:        claims,
-		email:         identity.Email,
-		expiresAt:     identity.ExpiresAt,
+		email:         identity.Email(),
+		expiresAt:     identity.ExpiresAt(),
 		groups:        groups,
-		id:            identity.ID,
+		id:            identity.ID(),
 		name:          preferredName,
 		preferredName: preferredName,
 		roles:         roleList,

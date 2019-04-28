@@ -32,7 +32,6 @@ import (
 	"time"
 
 	gcsrf "github.com/gorilla/csrf"
-	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/oauth2"
 
 	"github.com/go-chi/chi"
 	"go.uber.org/zap"
@@ -131,12 +130,12 @@ func (r *oauthProxy) oauthCallbackHandler(w http.ResponseWriter, req *http.Reque
 	// Flow: once we exchange the authorization code we parse the ID Token; we then check for an access token,
 	// if an access token is present and we can decode it, we use that as the session token, otherwise we default
 	// to the ID Token.
-	token, identity, err := parseToken(resp.IDToken)
+	token, identity, err := parseToken(r.client, resp.IDToken)
 	if err != nil {
 		r.accessForbidden(w, req, "unable to parse ID token for identity", err.Error())
 		return
 	}
-	access, id, err := parseToken(resp.AccessToken)
+	access, id, err := parseToken(r.client, resp.AccessToken)
 	if err == nil {
 		token = access
 		identity = id
@@ -160,9 +159,9 @@ func (r *oauthProxy) oauthCallbackHandler(w http.ResponseWriter, req *http.Reque
 	}
 
 	r.log.Info("issuing access token for user",
-		zap.String("email", identity.Email),
-		zap.String("expires", identity.ExpiresAt.Format(time.RFC3339)),
-		zap.String("duration", time.Until(identity.ExpiresAt).String()))
+		zap.String("email", identity.Email()),
+		zap.String("expires", identity.ExpiresAt().Format(time.RFC3339)),
+		zap.String("duration", time.Until(identity.ExpiresAt()).String()))
 
 	// @metric a token has been issued
 	oauthTokensMetric.WithLabelValues("issued").Inc()
@@ -186,14 +185,14 @@ func (r *oauthProxy) oauthCallbackHandler(w http.ResponseWriter, req *http.Reque
 		default:
 			// notes: not all idp refresh tokens are readable, google for example, so we attempt to decode into
 			// a jwt and if possible extract the expiration, else we default to 10 days
-			if _, ident, err := parseToken(resp.RefreshToken); err != nil {
+			if _, ident, err := parseToken(r.client, resp.RefreshToken); err != nil {
 				r.dropRefreshTokenCookie(req, w, encrypted, 0)
 			} else {
-				r.dropRefreshTokenCookie(req, w, encrypted, time.Until(ident.ExpiresAt))
+				r.dropRefreshTokenCookie(req, w, encrypted, time.Until(ident.ExpiresAt()))
 			}
 		}
 	} else {
-		r.dropAccessTokenCookie(req, w, accessToken, time.Until(identity.ExpiresAt))
+		r.dropAccessTokenCookie(req, w, accessToken, time.Until(identity.ExpiresAt()))
 	}
 
 	// step: decode the request variable
@@ -249,7 +248,7 @@ func (r *oauthProxy) loginHandler(w http.ResponseWriter, req *http.Request) {
 		start := time.Now()
 		token, err := client.UserCredsToken(username, password)
 		if err != nil {
-			if strings.HasPrefix(err.Error(), oauth2.ErrorInvalidGrant) {
+			if strings.HasPrefix(err.Error(), ErrorInvalidGrant) {
 				return "invalid user credentials provided", http.StatusUnauthorized, err
 			}
 			return "unable to request the access token via grant_type 'password'", http.StatusInternalServerError, err
@@ -257,12 +256,12 @@ func (r *oauthProxy) loginHandler(w http.ResponseWriter, req *http.Request) {
 		// @metric observe the time taken for a login request
 		oauthLatencyMetric.WithLabelValues("login").Observe(time.Since(start).Seconds())
 
-		_, identity, err := parseToken(token.AccessToken)
+		_, identity, err := parseToken(r.client, token.AccessToken)
 		if err != nil {
 			return "unable to decode the access token", http.StatusNotImplemented, err
 		}
 
-		r.dropAccessTokenCookie(req, w, token.AccessToken, time.Until(identity.ExpiresAt))
+		r.dropAccessTokenCookie(req, w, token.AccessToken, time.Until(identity.ExpiresAt()))
 
 		// @metric a token has been issued
 		oauthTokensMetric.WithLabelValues("login").Inc()

@@ -8,45 +8,46 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kylelemons/godebug/pretty"
 	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/jose"
 	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/key"
 	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/oauth2"
-	"github.com/kylelemons/godebug/pretty"
+	"github.com/oneconcern/keycloak-gatekeeper/internal/providers"
 )
 
 func TestNewClientScopeDefault(t *testing.T) {
 	tests := []struct {
-		c ClientConfig
+		c providers.ClientConfig
 		e []string
 	}{
 		{
 			// No scope
-			c: ClientConfig{RedirectURL: "http://example.com/redirect"},
+			c: providers.ClientConfig{RedirectURL: "http://example.com/redirect"},
 			e: DefaultScope,
 		},
 		{
 			// Nil scope
-			c: ClientConfig{RedirectURL: "http://example.com/redirect", Scope: nil},
+			c: providers.ClientConfig{RedirectURL: "http://example.com/redirect", Scope: nil},
 			e: DefaultScope,
 		},
 		{
 			// Empty scope
-			c: ClientConfig{RedirectURL: "http://example.com/redirect", Scope: []string{}},
+			c: providers.ClientConfig{RedirectURL: "http://example.com/redirect", Scope: []string{}},
 			e: []string{},
 		},
 		{
 			// Custom scope equal to default
-			c: ClientConfig{RedirectURL: "http://example.com/redirect", Scope: []string{"openid", "email", "profile"}},
+			c: providers.ClientConfig{RedirectURL: "http://example.com/redirect", Scope: []string{"openid", "email", "profile"}},
 			e: DefaultScope,
 		},
 		{
 			// Custom scope not including defaults
-			c: ClientConfig{RedirectURL: "http://example.com/redirect", Scope: []string{"foo", "bar"}},
+			c: providers.ClientConfig{RedirectURL: "http://example.com/redirect", Scope: []string{"foo", "bar"}},
 			e: []string{"foo", "bar"},
 		},
 		{
 			// Custom scopes overlapping with defaults
-			c: ClientConfig{RedirectURL: "http://example.com/redirect", Scope: []string{"openid", "foo"}},
+			c: providers.ClientConfig{RedirectURL: "http://example.com/redirect", Scope: []string{"openid", "foo"}},
 			e: []string{"openid", "foo"},
 		},
 	}

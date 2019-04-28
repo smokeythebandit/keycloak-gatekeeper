@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	phttp "github.com/oneconcern/keycloak-gatekeeper/internal/oidc/http"
+	"github.com/oneconcern/keycloak-gatekeeper/internal/providers"
 )
 
 func TestResponseTypesEqual(t *testing.T) {
@@ -159,6 +160,7 @@ func TestParseAuthCodeRequest(t *testing.T) {
 }
 
 type fakeBadClient struct {
+	*http.Client
 	Request *http.Request
 	err     error
 }
@@ -169,9 +171,9 @@ func (f *fakeBadClient) Do(r *http.Request) (*http.Response, error) {
 }
 
 func TestClientCredsToken(t *testing.T) {
-	hc := &fakeBadClient{nil, errors.New("error")}
+	hc := &fakeBadClient{Client: &http.Client{}, Request: nil, err: errors.New("error")}
 	cfg := Config{
-		Credentials: ClientCredentials{ID: "c#id", Secret: "c secret"},
+		Credentials: providers.ClientCredentials{ID: "c#id", Secret: "c secret"},
 		Scope:       []string{"foo-scope", "bar-scope"},
 		TokenURL:    "http://example.com/token",
 		AuthMethod:  AuthMethodClientSecretBasic,
@@ -179,7 +181,7 @@ func TestClientCredsToken(t *testing.T) {
 		AuthURL:     "http://example.com/auth",
 	}
 
-	c, err := NewClient(hc, cfg)
+	c, err := NewClient(hc.Client, cfg)
 	if err != nil {
 		t.Errorf("unexpected error %v", err)
 	}
@@ -230,9 +232,9 @@ func TestClientCredsToken(t *testing.T) {
 }
 
 func TestUserCredsToken(t *testing.T) {
-	hc := &fakeBadClient{nil, errors.New("error")}
+	hc := &fakeBadClient{Client: &http.Client{}, Request: nil, err: errors.New("error")}
 	cfg := Config{
-		Credentials: ClientCredentials{ID: "c#id", Secret: "c secret"},
+		Credentials: providers.ClientCredentials{ID: "c#id", Secret: "c secret"},
 		Scope:       []string{"foo-scope", "bar-scope"},
 		TokenURL:    "http://example.com/token",
 		AuthMethod:  AuthMethodClientSecretBasic,
@@ -240,7 +242,7 @@ func TestUserCredsToken(t *testing.T) {
 		AuthURL:     "http://example.com/auth",
 	}
 
-	c, err := NewClient(hc, cfg)
+	c, err := NewClient(hc.Client, cfg)
 	if err != nil {
 		t.Errorf("unexpected error %v", err)
 	}
@@ -309,14 +311,15 @@ func TestNewAuthenticatedRequest(t *testing.T) {
 
 	for i, tt := range tests {
 		cfg := Config{
-			Credentials: ClientCredentials{ID: "c#id", Secret: "c secret"},
+			Credentials: providers.ClientCredentials{ID: "c#id", Secret: "c secret"},
 			Scope:       []string{"foo-scope", "bar-scope"},
 			TokenURL:    "http://example.com/token",
 			AuthURL:     "http://example.com/auth",
 			RedirectURL: "http://example.com/redirect",
 			AuthMethod:  tt.authMethod,
 		}
-		c, err := NewClient(nil, cfg)
+		cli := &fakeBadClient{Client: &http.Client{}, Request: nil}
+		c, err := NewClient(cli.Client, cfg)
 		req, err := c.newAuthenticatedRequest(tt.url, tt.values)
 		if err != nil {
 			t.Errorf("case %d: unexpected error: %v", i, err)
@@ -367,7 +370,7 @@ func TestParseTokenResponse(t *testing.T) {
 	}
 	tests := []struct {
 		resp      response
-		wantResp  TokenResponse
+		wantResp  providers.TokenResponse
 		wantError *Error
 	}{
 		{
@@ -408,7 +411,7 @@ func TestParseTokenResponse(t *testing.T) {
 				body:        `{"access_token":"e72e16c7e42f292c6912e7710c838347ae178b4a", "scope":"repo,gist", "token_type":"bearer"}`,
 				contentType: "application/json",
 			},
-			wantResp: TokenResponse{
+			wantResp: providers.TokenResponse{
 				AccessToken: "e72e16c7e42f292c6912e7710c838347ae178b4a",
 				TokenType:   "bearer",
 				Scope:       "repo,gist",
@@ -419,7 +422,7 @@ func TestParseTokenResponse(t *testing.T) {
 				body:        `access_token=e72e16c7e42f292c6912e7710c838347ae178b4a&scope=user%2Cgist&token_type=bearer`,
 				contentType: "application/x-www-form-urlencoded",
 			},
-			wantResp: TokenResponse{
+			wantResp: providers.TokenResponse{
 				AccessToken: "e72e16c7e42f292c6912e7710c838347ae178b4a",
 				TokenType:   "bearer",
 				Scope:       "user,gist",
@@ -430,7 +433,7 @@ func TestParseTokenResponse(t *testing.T) {
 				body:        `{"access_token":"foo","id_token":"bar","expires_in":200,"token_type":"bearer","refresh_token":"spam"}`,
 				contentType: "application/json; charset=utf-8",
 			},
-			wantResp: TokenResponse{
+			wantResp: providers.TokenResponse{
 				AccessToken:  "foo",
 				IDToken:      "bar",
 				Expires:      200,
@@ -444,7 +447,7 @@ func TestParseTokenResponse(t *testing.T) {
 				body:        `{"access_token":"foo","id_token":"bar","expires_in":"300","token_type":"bearer","refresh_token":"spam"}`,
 				contentType: "application/json; charset=utf-8",
 			},
-			wantResp: TokenResponse{
+			wantResp: providers.TokenResponse{
 				AccessToken:  "foo",
 				IDToken:      "bar",
 				Expires:      300,
@@ -457,7 +460,7 @@ func TestParseTokenResponse(t *testing.T) {
 				body:        `{"access_token":"foo","id_token":"bar","expires":200,"token_type":"bearer","refresh_token":"spam"}`,
 				contentType: "application/json; charset=utf-8",
 			},
-			wantResp: TokenResponse{
+			wantResp: providers.TokenResponse{
 				AccessToken:  "foo",
 				IDToken:      "bar",
 				Expires:      200,
@@ -470,7 +473,7 @@ func TestParseTokenResponse(t *testing.T) {
 				body:        `access_token=foo&id_token=bar&expires_in=200&token_type=bearer&refresh_token=spam`,
 				contentType: "application/x-www-form-urlencoded",
 			},
-			wantResp: TokenResponse{
+			wantResp: providers.TokenResponse{
 				AccessToken:  "foo",
 				IDToken:      "bar",
 				Expires:      200,

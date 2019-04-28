@@ -12,7 +12,9 @@ import (
 	"strconv"
 	"strings"
 
+	//phttp "github.com/oneconcern/keycloak-gatekeeper/internal/oidc/http"
 	phttp "github.com/oneconcern/keycloak-gatekeeper/internal/oidc/http"
+	"github.com/oneconcern/keycloak-gatekeeper/internal/providers"
 )
 
 // ResponseTypesEqual compares two response_type values. If either
@@ -67,7 +69,7 @@ const (
 )
 
 type Config struct {
-	Credentials ClientCredentials
+	Credentials providers.ClientCredentials
 	Scope       []string
 	RedirectURL string
 	AuthURL     string
@@ -79,8 +81,8 @@ type Config struct {
 }
 
 type Client struct {
-	hc          phttp.Client
-	creds       ClientCredentials
+	hc          *http.Client
+	creds       providers.ClientCredentials
 	scope       []string
 	authURL     *url.URL
 	redirectURL *url.URL
@@ -88,12 +90,7 @@ type Client struct {
 	authMethod  string
 }
 
-type ClientCredentials struct {
-	ID     string
-	Secret string
-}
-
-func NewClient(hc phttp.Client, cfg Config) (c *Client, err error) {
+func NewClient(hc *http.Client, cfg Config) (c *Client, err error) {
 	if len(cfg.Credentials.ID) == 0 {
 		err = errors.New("missing client id")
 		return
@@ -142,7 +139,7 @@ func NewClient(hc phttp.Client, cfg Config) (c *Client, err error) {
 }
 
 // Return the embedded HTTP client
-func (c *Client) HttpClient() phttp.Client {
+func (c *Client) HttpClient() *http.Client {
 	return c.hc
 }
 
@@ -206,7 +203,7 @@ func (c *Client) newAuthenticatedRequest(urlToken string, values url.Values) (*h
 
 // ClientCredsToken posts the client id and secret to obtain a token scoped to the OAuth2 client via the "client_credentials" grant type.
 // May not be supported by all OAuth2 servers.
-func (c *Client) ClientCredsToken(scope []string) (result TokenResponse, err error) {
+func (c *Client) ClientCredsToken(scope []string) (result providers.TokenResponse, err error) {
 	v := url.Values{
 		"scope":      {strings.Join(scope, " ")},
 		"grant_type": {GrantTypeClientCreds},
@@ -228,7 +225,7 @@ func (c *Client) ClientCredsToken(scope []string) (result TokenResponse, err err
 
 // UserCredsToken posts the username and password to obtain a token scoped to the OAuth2 client via the "password" grant_type
 // May not be supported by all OAuth2 servers.
-func (c *Client) UserCredsToken(username, password string) (result TokenResponse, err error) {
+func (c *Client) UserCredsToken(username, password string) (result providers.TokenResponse, err error) {
 	v := url.Values{
 		"scope":      {strings.Join(c.scope, " ")},
 		"grant_type": {GrantTypeUserCreds},
@@ -253,7 +250,7 @@ func (c *Client) UserCredsToken(username, password string) (result TokenResponse
 // RequestToken requests a token from the Token Endpoint with the specified grantType.
 // If 'grantType' == GrantTypeAuthCode, then 'value' should be the authorization code.
 // If 'grantType' == GrantTypeRefreshToken, then 'value' should be the refresh token.
-func (c *Client) RequestToken(grantType, value string) (result TokenResponse, err error) {
+func (c *Client) RequestToken(grantType, value string) (result providers.TokenResponse, err error) {
 	v := c.commonURLValues()
 
 	v.Set("grant_type", grantType)
@@ -282,7 +279,7 @@ func (c *Client) RequestToken(grantType, value string) (result TokenResponse, er
 	return parseTokenResponse(resp)
 }
 
-func parseTokenResponse(resp *http.Response) (result TokenResponse, err error) {
+func parseTokenResponse(resp *http.Response) (result providers.TokenResponse, err error) {
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return
@@ -294,7 +291,7 @@ func parseTokenResponse(resp *http.Response) (result TokenResponse, err error) {
 		return
 	}
 
-	result = TokenResponse{
+	result = providers.TokenResponse{
 		RawBody: body,
 	}
 
@@ -362,16 +359,6 @@ func parseTokenResponse(resp *http.Response) (result TokenResponse, err error) {
 		}
 	}
 	return
-}
-
-type TokenResponse struct {
-	AccessToken  string
-	TokenType    string
-	Expires      int
-	IDToken      string
-	RefreshToken string // OPTIONAL.
-	Scope        string // OPTIONAL, if identical to the scope requested by the client, otherwise, REQUIRED.
-	RawBody      []byte // In case callers need some other non-standard info from the token response
 }
 
 type AuthCodeRequest struct {

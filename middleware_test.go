@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/jose"
+	"github.com/oneconcern/keycloak-gatekeeper/internal/providers"
 	"github.com/rs/cors"
 	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
@@ -53,7 +54,7 @@ type fakeRequest struct {
 	RawToken                string
 	Redirects               bool
 	Roles                   []string
-	TokenClaims             jose.Claims
+	TokenClaims             providers.Claims
 	URI                     string
 	URL                     string
 	Username                string
@@ -183,8 +184,8 @@ func (f *fakeProxy) RunTests(t *testing.T, requests []fakeRequest) {
 		}
 		if c.HasToken {
 			token := newTestToken(f.idp.getLocation())
-			if c.TokenClaims != nil && len(c.TokenClaims) > 0 {
-				token.merge(c.TokenClaims)
+			if c.TokenClaims != nil && c.TokenClaims.Len() > 0 {
+				token.merge(c.TokenClaims.(jose.Claims))
 			}
 			if len(c.Roles) > 0 {
 				token.addRealmRoles(c.Roles)
@@ -1162,7 +1163,7 @@ func testEncryptedToken(t *testing.T, cfg *Config) {
 		if err != nil {
 			return false
 		}
-		jwt, err := jose.ParseJWT(accessToken)
+		jwt, err := parseJWT(accessToken)
 		if err != nil {
 			return false
 		}

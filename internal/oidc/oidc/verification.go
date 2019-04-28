@@ -54,7 +54,7 @@ func VerifyClaims(jwt providers.JSONWebToken, issuer, clientID string) error {
 		return err
 	}
 
-	if ident.ExpiresAt.Before(now) {
+	if ident.ExpiresAt().Before(now) {
 		return errors.New("token is expired")
 	}
 

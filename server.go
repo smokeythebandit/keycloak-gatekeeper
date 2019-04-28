@@ -41,13 +41,14 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/oidc"
+	"github.com/oneconcern/keycloak-gatekeeper/internal/providers"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
 )
 
 type oauthProxy struct {
-	client         *oidc.Client
+	client         providers.OIDCClient
 	config         *Config
 	endpoint       *url.URL
 	idp            oidc.ProviderConfig
@@ -504,7 +505,7 @@ func (r *oauthProxy) createTemplates() error {
 
 // newOpenIDClient initializes the openID configuration, note: the redirection url is deliberately left blank
 // in order to retrieve it from the host header on request
-func (r *oauthProxy) newOpenIDClient() (*oidc.Client, oidc.ProviderConfig, *http.Client, error) {
+func (r *oauthProxy) newOpenIDClient() (providers.OIDCClient, oidc.ProviderConfig, *http.Client, error) {
 	var err error
 	var config oidc.ProviderConfig
 
@@ -559,16 +560,7 @@ func (r *oauthProxy) newOpenIDClient() (*oidc.Client, oidc.ProviderConfig, *http
 		r.log.Info("successfully retrieved openid configuration from the discovery")
 	}
 
-	client, err := oidc.NewClient(oidc.ClientConfig{
-		Credentials: oidc.ClientCredentials{
-			ID:     r.config.ClientID,
-			Secret: r.config.ClientSecret,
-		},
-		HTTPClient:     hc,
-		RedirectURL:    fmt.Sprintf("%s/oauth/callback", r.config.RedirectionURL),
-		ProviderConfig: config,
-		Scope:          append(r.config.Scopes, oidc.DefaultScope...),
-	})
+	client, err := r.getOIDCClient()
 	if err != nil {
 		return nil, config, hc, err
 	}

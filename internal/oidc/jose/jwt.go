@@ -23,7 +23,7 @@ func NewJWT(header JOSEHeader, claims providers.Claims) (jwt *JWT, err error) {
 	jwt.Header = header
 	jwt.Header[HeaderMediaType] = "JWT"
 
-	claimBytes, err := marshalClaims(claims)
+	claimBytes, err := claims.MarshalJSON()
 	if err != nil {
 		return
 	}

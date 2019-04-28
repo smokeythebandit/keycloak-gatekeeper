@@ -21,10 +21,10 @@ func TestIdentityFromClaims(t *testing.T) {
 				"exp":   float64(1.416935146e+09),
 			},
 			want: Identity{
-				ID:        "123850281",
-				Name:      "",
-				Email:     "elroy@example.com",
-				ExpiresAt: time.Date(2014, time.November, 25, 17, 05, 46, 0, time.UTC),
+				id:        "123850281",
+				name:      "",
+				email:     "elroy@example.com",
+				expiresAt: time.Date(2014, time.November, 25, 17, 05, 46, 0, time.UTC),
 			},
 		},
 		{
@@ -34,10 +34,10 @@ func TestIdentityFromClaims(t *testing.T) {
 				"exp":  float64(1.416935146e+09),
 			},
 			want: Identity{
-				ID:        "123850281",
-				Name:      "",
-				Email:     "",
-				ExpiresAt: time.Date(2014, time.November, 25, 17, 05, 46, 0, time.UTC),
+				id:        "123850281",
+				name:      "",
+				email:     "",
+				expiresAt: time.Date(2014, time.November, 25, 17, 05, 46, 0, time.UTC),
 			},
 		},
 		{
@@ -48,10 +48,10 @@ func TestIdentityFromClaims(t *testing.T) {
 				"exp":   int64(1416935146),
 			},
 			want: Identity{
-				ID:        "123850281",
-				Name:      "",
-				Email:     "elroy@example.com",
-				ExpiresAt: time.Date(2014, time.November, 25, 17, 05, 46, 0, time.UTC),
+				id:        "123850281",
+				name:      "",
+				email:     "elroy@example.com",
+				expiresAt: time.Date(2014, time.November, 25, 17, 05, 46, 0, time.UTC),
 			},
 		},
 		{
@@ -61,10 +61,10 @@ func TestIdentityFromClaims(t *testing.T) {
 				"email": "elroy@example.com",
 			},
 			want: Identity{
-				ID:        "123850281",
-				Name:      "",
-				Email:     "elroy@example.com",
-				ExpiresAt: time.Time{},
+				id:        "123850281",
+				name:      "",
+				email:     "elroy@example.com",
+				expiresAt: time.Time{},
 			},
 		},
 	}

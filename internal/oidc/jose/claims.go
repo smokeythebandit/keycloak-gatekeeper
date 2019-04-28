@@ -11,6 +11,10 @@ import (
 
 type Claims map[string]interface{}
 
+func (c Claims) Len() int {
+	return len(c)
+}
+
 func (c Claims) Get(name string) (interface{}, bool) {
 	claim, ok := c[name]
 	return claim, ok
@@ -120,16 +124,29 @@ func (c Claims) TimeClaim(name string) (time.Time, bool, error) {
 	return time.Unix(int64(s), int64(ns)).UTC(), true, nil
 }
 
+func (c Claims) MarshalJSON() ([]byte, error) {
+	return marshalClaims(c)
+}
+
+func (c *Claims) UnmarshalJSON(data []byte) error {
+	u, err := decodeClaims(data)
+	if err != nil {
+		return err
+	}
+	*c = u
+	return nil
+}
+
 func decodeClaims(payload []byte) (Claims, error) {
-	var c Claims
+	var c map[string]interface{}
 	if err := json.Unmarshal(payload, &c); err != nil {
 		return nil, fmt.Errorf("malformed JWT claims, unable to decode: %v", err)
 	}
-	return c, nil
+	return Claims(c), nil
 }
 
-func marshalClaims(c providers.Claims) ([]byte, error) {
-	b, err := json.Marshal(c)
+func marshalClaims(c Claims) ([]byte, error) {
+	b, err := json.Marshal(map[string]interface{}(c))
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +154,7 @@ func marshalClaims(c providers.Claims) ([]byte, error) {
 }
 
 func encodeClaims(c providers.Claims) (string, error) {
-	b, err := marshalClaims(c)
+	b, err := c.MarshalJSON()
 	if err != nil {
 		return "", err
 	}

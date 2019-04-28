@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/jose"
+	"github.com/oneconcern/keycloak-gatekeeper/internal/providers"
 )
 
 func NewPublicKey(jwk jose.JWK) *PublicKey {
@@ -88,12 +89,16 @@ func NewPublicKeySet(jwks []jose.JWK, exp time.Time) *PublicKeySet {
 	}
 }
 
-func (s *PublicKeySet) ExpiresAt() time.Time {
+func (s PublicKeySet) ExpiresAt() time.Time {
 	return s.expiresAt
 }
 
-func (s *PublicKeySet) Keys() []PublicKey {
-	return s.keys
+func (s *PublicKeySet) Keys() []providers.PublicKey {
+	result := make([]providers.PublicKey, 0, len(s.keys))
+	for _, k := range s.keys {
+		result = append(result, k)
+	}
+	return result
 }
 
 func (s *PublicKeySet) Key(id string) *PublicKey {

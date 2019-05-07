@@ -93,7 +93,7 @@ func TestGetUserContext(t *testing.T) {
 }
 
 func TestGetUserRealmRoleContext(t *testing.T) {
-	client, _ := oidc.NewClient(providers.ClientConfig{})
+	client, _ := newOIDCClient(providers.ClientConfig{})
 	roles := []string{"dsp-dev-vpn", "vpn-user", "dsp-prod-vpn", "openvpn:dev-vpn"}
 	token := newTestToken("test")
 	token.addRealmRoles(roles)
@@ -107,7 +107,7 @@ func TestGetUserRealmRoleContext(t *testing.T) {
 }
 
 func TestUserContextString(t *testing.T) {
-	client, _ := oidc.NewClient(providers.ClientConfig{})
+	client, _ := newOIDCClient(providers.ClientConfig{})
 	token := newTestToken("test")
 	context, err := extractIdentity(client, token.getToken())
 	assert.NoError(t, err)

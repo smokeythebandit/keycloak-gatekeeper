@@ -29,7 +29,7 @@ func (r *oauthProxy) getOAuthClient(redirectionURL string) (providers.OAuthClien
 }
 
 func (r *oauthProxy) getOIDCClient(hc *http.Client, config providers.ProviderConfig) (providers.OIDCClient, error) {
-	client, err := oidc.NewClient(providers.ClientConfig{
+	return newOIDCClient(providers.ClientConfig{
 		Credentials: providers.ClientCredentials{
 			ID:     r.config.ClientID,
 			Secret: r.config.ClientSecret,
@@ -39,15 +39,15 @@ func (r *oauthProxy) getOIDCClient(hc *http.Client, config providers.ProviderCon
 		ProviderConfig: config,
 		Scope:          append(r.config.Scopes, DefaultScope...),
 	})
-	if err != nil {
-		return nil, err
-	}
-	return client, nil
 }
 
 // parseJWT returns a JWT from a token string
 func parseJWT(token string) (providers.JSONWebToken, error) {
 	return jose.ParseJWT(token)
+}
+
+func newOIDCClient(config providers.ClientConfig) (providers.OIDCClient, error) {
+	return oidc.NewClient(config)
 }
 
 func unmarshalClaims(content []byte) (providers.Claims, error) {

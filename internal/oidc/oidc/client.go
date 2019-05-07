@@ -92,8 +92,9 @@ type Client struct {
 func (c *Client) Healthy() error {
 	now := time.Now().UTC()
 
-	cfg := c.providerConfig.Get()
+	acfg := c.providerConfig.Get()
 
+	cfg := config.ProviderConfig{ProviderConfig: acfg}
 	if cfg.Empty() {
 		return errors.New("oidc client provider config empty")
 	}
@@ -256,7 +257,8 @@ func (c *Client) keysFuncWithID(KID string) func() []key.PublicKey {
 			return []key.PublicKey{}
 		}
 
-		return []key.PublicKey{*k}
+		kk := k.(*key.PublicKey)
+		return []key.PublicKey{*kk}
 	}
 }
 
@@ -271,14 +273,21 @@ func (c *Client) keysFuncAll() func() []key.PublicKey {
 			return []key.PublicKey{}
 		}
 
-		return c.keySet.Keys()
+		keys := c.keySet.Keys()
+		result := make([]key.PublicKey, len(keys))
+		for _, k := range keys {
+			kk := k.(key.PublicKey)
+			result = append(result, kk)
+		}
+		return result
 	}
 }
 
 // ClientCredsToken ...
 func (c *Client) ClientCredsToken(scope []string) (providers.JSONWebToken, error) {
-	cfg := c.providerConfig.Get()
+	acfg := c.providerConfig.Get()
 
+	cfg := config.ProviderConfig{ProviderConfig: acfg}
 	if !cfg.SupportsGrantType(oauth2.GrantTypeClientCreds) {
 		return nil, fmt.Errorf("%v grant type is not supported", oauth2.GrantTypeClientCreds)
 	}

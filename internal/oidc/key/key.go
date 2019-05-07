@@ -101,7 +101,7 @@ func (s *PublicKeySet) Keys() []providers.PublicKey {
 	return result
 }
 
-func (s *PublicKeySet) Key(id string) *PublicKey {
+func (s *PublicKeySet) Key(id string) providers.PublicKey {
 	return s.index[id]
 }
 

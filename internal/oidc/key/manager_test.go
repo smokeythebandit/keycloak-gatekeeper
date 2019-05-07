@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/jonboulle/clockwork"
 
 	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/jose"
@@ -219,6 +220,8 @@ func TestPublicKeys(t *testing.T) {
 		}
 
 		if !reflect.DeepEqual(want, got) {
+			spew.Dump(want)
+			spew.Dump(got)
 			t.Errorf("case %d: Invalid public keys: want=%v got=%v", i, want, got)
 		}
 	}

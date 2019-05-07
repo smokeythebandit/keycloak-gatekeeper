@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/oidc"
+	"github.com/oneconcern/keycloak-gatekeeper/internal/providers"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -76,7 +77,7 @@ func TestIsCookie(t *testing.T) {
 }
 
 func TestGetUserContext(t *testing.T) {
-	client, _ := oidc.NewClient(oidc.ClientConfig{})
+	client, _ := oidc.NewClient(providers.ClientConfig{})
 	realmRoles := []string{"realm:realm"}
 	clientRoles := []string{"client:client"}
 	token := newTestToken("test")
@@ -92,7 +93,7 @@ func TestGetUserContext(t *testing.T) {
 }
 
 func TestGetUserRealmRoleContext(t *testing.T) {
-	client, _ := oidc.NewClient(oidc.ClientConfig{})
+	client, _ := oidc.NewClient(providers.ClientConfig{})
 	roles := []string{"dsp-dev-vpn", "vpn-user", "dsp-prod-vpn", "openvpn:dev-vpn"}
 	token := newTestToken("test")
 	token.addRealmRoles(roles)
@@ -106,7 +107,7 @@ func TestGetUserRealmRoleContext(t *testing.T) {
 }
 
 func TestUserContextString(t *testing.T) {
-	client, _ := oidc.NewClient(oidc.ClientConfig{})
+	client, _ := oidc.NewClient(providers.ClientConfig{})
 	token := newTestToken("test")
 	context, err := extractIdentity(client, token.getToken())
 	assert.NoError(t, err)

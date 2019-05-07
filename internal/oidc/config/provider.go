@@ -439,12 +439,12 @@ func (p ProviderConfig) SupportsGrantType(grantType string) bool {
 
 // ProviderConfigGetter ...
 type ProviderConfigGetter interface {
-	Get() (ProviderConfig, error)
+	Get() (providers.ProviderConfig, error)
 }
 
 // ProviderConfigSetter ...
 type ProviderConfigSetter interface {
-	Set(ProviderConfig) error
+	Set(providers.ProviderConfig) error
 }
 
 // ProviderConfigSyncer ...
@@ -584,31 +584,34 @@ func NewHTTPProviderConfigGetter(hc phttp.Client, issuerURL string) *httpProvide
 	}
 }
 
-func (r *httpProviderConfigGetter) Get() (cfg ProviderConfig, err error) {
+func (r *httpProviderConfigGetter) Get() (providers.ProviderConfig, error) {
 	// If the Issuer value contains a path component, any terminating / MUST be removed before
 	// appending /.well-known/openid-configuration.
 	// https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderConfigurationRequest
+	var err error
+	cfg := ProviderConfig{}
+
 	discoveryURL := strings.TrimSuffix(r.issuerURL, "/") + discoveryConfigPath
 	req, err := http.NewRequest("GET", discoveryURL, nil)
 	if err != nil {
-		return
+		return cfg.ProviderConfig, err
 	}
 
 	resp, err := r.hc.Do(req)
 	if err != nil {
-		return
+		return cfg.ProviderConfig, err
 	}
 	defer resp.Body.Close()
 
 	if err = json.NewDecoder(resp.Body).Decode(&cfg); err != nil {
-		return
+		return cfg.ProviderConfig, err
 	}
 
 	var ttl time.Duration
 	var ok bool
 	ttl, ok, err = phttp.Cacheable(resp.Header)
 	if err != nil {
-		return
+		return cfg.ProviderConfig, err
 	} else if ok {
 		cfg.ExpiresAt = r.clock.Now().UTC().Add(ttl)
 	}
@@ -617,13 +620,13 @@ func (r *httpProviderConfigGetter) Get() (cfg ProviderConfig, err error) {
 	// http://openid.net/specs/openid-connect-discovery-1_0.html#ProviderConfigurationValidation
 	if !urlEqual(cfg.Issuer.String(), r.issuerURL) {
 		err = fmt.Errorf(`"issuer" in config (%v) does not match provided issuer URL (%v)`, cfg.Issuer, r.issuerURL)
-		return
+		return cfg.ProviderConfig, err
 	}
 
-	return
+	return cfg.ProviderConfig, nil
 }
 
-func FetchProviderConfig(hc phttp.Client, issuerURL string) (ProviderConfig, error) {
+func FetchProviderConfig(hc phttp.Client, issuerURL string) (providers.ProviderConfig, error) {
 	if hc == nil {
 		hc = http.DefaultClient
 	}
@@ -640,7 +643,7 @@ func waitForProviderConfig(hc phttp.Client, issuerURL string, clock clockwork.Cl
 	var sleep time.Duration
 	var err error
 	for {
-		pcfg, err = FetchProviderConfig(hc, issuerURL)
+		pcfg.ProviderConfig, err = FetchProviderConfig(hc, issuerURL)
 		if err == nil {
 			break
 		}

@@ -6,8 +6,8 @@ import (
 
 	"github.com/jonboulle/clockwork"
 
-	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/jose"
 	"github.com/coreos/pkg/health"
+	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/jose"
 )
 
 type PrivateKeyManager interface {

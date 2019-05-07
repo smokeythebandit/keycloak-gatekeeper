@@ -67,6 +67,7 @@ type OIDCClient interface {
 	VerifyJWT(JSONWebToken) error
 	OAuthClient() (OAuthClient, error)
 	IdentityFromClaims(Claims) (Identity, error)
+	SyncProviderConfig(string) chan struct{}
 }
 
 // TODO:
@@ -161,6 +162,18 @@ type ProviderConfig struct {
 
 	// Not part of the OpenID Provider Metadata
 	ExpiresAt time.Time
+}
+
+// FetchProviderConfig retrieves OIDC config
+func FetchProviderConfig(hc *http.Client, issuerURL string) (ProviderConfig, error) {
+	if hc == nil {
+		hc = http.DefaultClient
+	}
+
+	// TODO
+	return ProviderConfig{}, nil
+	//g := config.NewHTTPProviderConfigGetter(hc, issuerURL)
+	//return g.Get()
 }
 
 type PublicKey interface {

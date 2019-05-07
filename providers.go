@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 
 	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/jose"
 	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/oauth2"
@@ -15,7 +16,7 @@ import (
 // getOAuthClient returns a oauth2 client from the openid client
 func (r *oauthProxy) getOAuthClient(redirectionURL string) (providers.OAuthClient, error) {
 	return oauth2.NewClient(r.idpClient, oauth2.Config{
-		Credentials: oauth2.ClientCredentials{
+		Credentials: providers.ClientCredentials{
 			ID:     r.config.ClientID,
 			Secret: r.config.ClientSecret,
 		},
@@ -27,9 +28,9 @@ func (r *oauthProxy) getOAuthClient(redirectionURL string) (providers.OAuthClien
 	})
 }
 
-func (r *oauthProxy) getOIDCClient() (providers.OIDCClient, error) {
-	client, err := oidc.NewClient(oidc.ClientConfig{
-		Credentials: oidc.ClientCredentials{
+func (r *oauthProxy) getOIDCClient(hc *http.Client, config providers.ProviderConfig) (providers.OIDCClient, error) {
+	client, err := oidc.NewClient(providers.ClientConfig{
+		Credentials: providers.ClientCredentials{
 			ID:     r.config.ClientID,
 			Secret: r.config.ClientSecret,
 		},
@@ -39,7 +40,7 @@ func (r *oauthProxy) getOIDCClient() (providers.OIDCClient, error) {
 		Scope:          append(r.config.Scopes, DefaultScope...),
 	})
 	if err != nil {
-		return nil, config, hc, err
+		return nil, err
 	}
 	return client, nil
 }
@@ -49,11 +50,10 @@ func parseJWT(token string) (providers.JSONWebToken, error) {
 	return jose.ParseJWT(token)
 }
 
-func unmarshalClaims(content) (providers.Claims, error) {
+func unmarshalClaims(content []byte) (providers.Claims, error) {
 	var claims jose.Claims
 	if err := json.Unmarshal(content, &claims); err != nil {
 		return nil, err
 	}
-
 	return claims, nil
 }

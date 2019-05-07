@@ -40,7 +40,6 @@ import (
 	"github.com/elazarl/goproxy"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
-	"github.com/oneconcern/keycloak-gatekeeper/internal/oidc/oidc"
 	"github.com/oneconcern/keycloak-gatekeeper/internal/providers"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -51,7 +50,7 @@ type oauthProxy struct {
 	client         providers.OIDCClient
 	config         *Config
 	endpoint       *url.URL
-	idp            oidc.ProviderConfig
+	idp            providers.ProviderConfig
 	idpClient      *http.Client
 	listener       net.Listener
 	log            *zap.Logger
@@ -505,9 +504,9 @@ func (r *oauthProxy) createTemplates() error {
 
 // newOpenIDClient initializes the openID configuration, note: the redirection url is deliberately left blank
 // in order to retrieve it from the host header on request
-func (r *oauthProxy) newOpenIDClient() (providers.OIDCClient, oidc.ProviderConfig, *http.Client, error) {
+func (r *oauthProxy) newOpenIDClient() (providers.OIDCClient, providers.ProviderConfig, *http.Client, error) {
 	var err error
-	var config oidc.ProviderConfig
+	var config providers.ProviderConfig
 
 	// step: fix up the url if required, the underlying lib will add the .well-known/openid-configuration to the discovery url for us.
 	if strings.HasSuffix(r.config.DiscoveryURL, "/.well-known/openid-configuration") {
@@ -544,7 +543,7 @@ func (r *oauthProxy) newOpenIDClient() (providers.OIDCClient, oidc.ProviderConfi
 			r.log.Info("attempting to retrieve configuration discovery url",
 				zap.String("url", r.config.DiscoveryURL),
 				zap.String("timeout", r.config.OpenIDProviderTimeout.String()))
-			if config, err = oidc.FetchProviderConfig(hc, r.config.DiscoveryURL); err == nil {
+			if config, err = providers.FetchProviderConfig(hc, r.config.DiscoveryURL); err == nil {
 				break // break and complete
 			}
 			r.log.Warn("failed to get provider configuration from discovery", zap.Error(err))
@@ -560,7 +559,7 @@ func (r *oauthProxy) newOpenIDClient() (providers.OIDCClient, oidc.ProviderConfi
 		r.log.Info("successfully retrieved openid configuration from the discovery")
 	}
 
-	client, err := r.getOIDCClient()
+	client, err := r.getOIDCClient(hc, config)
 	if err != nil {
 		return nil, config, hc, err
 	}

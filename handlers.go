@@ -419,6 +419,24 @@ func (r *oauthProxy) expirationHandler(w http.ResponseWriter, req *http.Request)
 	w.WriteHeader(http.StatusOK)
 }
 
+// initCookieHandler issues some empty set of cookies if none already present in the request
+//
+// This endpoint allows to workaround iframe+cookies issues with safari
+func (r *oauthProxy) initCookieHandler(w http.ResponseWriter, req *http.Request) {
+	w.Header().Set("Content-Type", jsonMime)
+	_, err := r.getIdentity(req)
+	if err == nil {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	r.dropAccessTokenCookie(req, w, "novalue", 10*time.Second) // if session cookies flag is not enabled, this expires in 10 s
+	r.dropRefreshTokenCookie(req, w, "novalue", 10*time.Second)
+	if r.config.EnableCSRF {
+		r.dropCookieWithChunks(req, w, r.config.CSRFCookieName, "novalue", 0) // CSRF cookie is always a session cookie whatever the settings
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
 // tokenHandler display access token to screen
 func (r *oauthProxy) tokenHandler(w http.ResponseWriter, req *http.Request) {
 	user, err := r.getIdentity(req)

@@ -70,6 +70,7 @@ func (r *oauthProxy) createReverseProxy() error {
 			e.HandleFunc(authorizationURL, r.oauthAuthorizationHandler)
 			e.Get(callbackURL, r.oauthCallbackHandler)
 			e.Get(expiredURL, r.expirationHandler)
+			e.Get(initCookieURL, r.initCookieHandler)
 
 			e.With(r.authenticationMiddleware()).Get(logoutURL, r.logoutHandler)
 			e.With(r.authenticationMiddleware()).Get(tokenURL, r.tokenHandler)

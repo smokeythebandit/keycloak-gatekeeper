@@ -55,6 +55,7 @@ const (
 	metricsURL       = "/metrics"
 	tokenURL         = "/token"
 	debugURL         = "/debug/pprof"
+	initCookieURL    = "/init-cookies"
 
 	claimAudience       = "aud"
 	claimPreferredName  = "preferred_username"

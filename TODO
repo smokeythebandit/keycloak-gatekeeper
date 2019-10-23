@@ -29,4 +29,4 @@ FREDBI TODO:
 * [ ] upgrade from coreos/oidc V1
 * [ ] keycloak client registration / admin endpoint
 * [ ] watch refresh client secret
-* [ ] watch refresh encryption secret
+* [ ] redact own cookies when white listed

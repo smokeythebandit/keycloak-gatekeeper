@@ -27,13 +27,6 @@ build: golang
 	@mkdir -p bin
 	go build -ldflags "${LFLAGS}" -o bin/${NAME}
 
-release: clean golang
-	mkdir -p release
-	$(foreach GOOS, $(PLATFORMS),\
-	$(foreach GOARCH, $(ARCHITECTURES), $(shell [ $(GOOS) = "windows" ]  && EXT=".exe"; env GOOS=$(GOOS) GOARCH=$(GOARCH) CGO_ENABLED=0 go build -a -tags netgo -ldflags "-w ${LFLAGS}" -o bin/${NAME}$$EXT; \
-	tar -czvf release/${NAME}-$(GOOS)-$(GOARCH).tar.gz -C bin/ ${NAME}$$EXT >/dev/null; \
-  sha1sum release/${NAME}-$(GOOS)-$(GOARCH).tar.gz | cut -d " " -f1 > release/${NAME}-$(GOOS)-$(GOARCH).tar.gz.sha1 )))
-
 static: golang
 	@echo "--> Compiling the static binary"
 	@mkdir -p bin
@@ -97,9 +90,9 @@ vet:
 	fi
 
 lint:
-	@echo "--> Running golint"
-	@which golint 2>/dev/null ; if [ $$? -eq 1 ]; then \
-		go get -u github.com/golang/lint/golint; \
+	@echo "--> Running golangci-lint"
+	@which golangci-lint 2>/dev/null ; if [ $$? -eq 1 ]; then \
+		go get -u github.com/golangci/golangci-lint/cmd/golangci-lint; \
 	fi
 	@golint .
 
@@ -114,7 +107,7 @@ gofmt:
 
 verify:
 	@echo "--> Verifying the code"
-	gometalinter --disable=errcheck --disable=gocyclo --disable=gas --disable=aligncheck --errors
+	golangci-lint run
 
 format:
 	@echo "--> Running go fmt"

@@ -413,7 +413,6 @@ func (r *oauthProxy) createStdProxy(upstream *url.URL) error {
 				res.Header.Del("Access-Control-Allow-Headers")
 				res.Header.Del("Access-Control-Allow-Methods")
 				res.Header.Del("Access-Control-Max-Age")
-				res.Header.Del("")
 			}
 			return nil
 		},

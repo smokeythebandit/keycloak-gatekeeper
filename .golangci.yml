@@ -42,5 +42,5 @@ linters:
     - thelper
     - gocyclo
     - tagliatelle
-    - paralleltest
     - gomoddirectives
+    - paralleltest

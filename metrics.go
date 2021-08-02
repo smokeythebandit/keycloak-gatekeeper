@@ -24,14 +24,14 @@ var (
 	)
 	oauthLatencyMetric = prometheus.NewSummaryVec(
 		prometheus.SummaryOpts{
-			Name: "proxy_oauth_request_latency",
+			Name: "proxy_oauth_request_latency_seconds",
 			Help: "A summary of the request latancy for requests against the openid provider (seconds)",
 		},
 		[]string{"action"},
 	)
 	latencyMetric = prometheus.NewSummary(
 		prometheus.SummaryOpts{
-			Name: "proxy_request_duration",
+			Name: "proxy_request_duration_seconds",
 			Help: "A summary of the http request latency for proxy requests (seconds)",
 		},
 	)

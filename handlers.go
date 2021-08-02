@@ -676,6 +676,7 @@ func (r *oauthProxy) refreshToken(w http.ResponseWriter, req *http.Request, user
 			if err := r.DeleteRefreshToken(oldToken); err != nil {
 				logger.Error("failed to remove old token", zap.Error(err))
 			}
+
 			if err := r.StoreRefreshToken(newToken, encrypted); err != nil {
 				logger.Error("failed to store refresh token", zap.Error(err))
 				return

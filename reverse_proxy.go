@@ -272,7 +272,7 @@ func (r *oauthProxy) proxyMiddleware(resource *Resource) func(http.Handler) http
 			if scope != nil {
 				sc, ok := scope.(*RequestScope)
 				if !ok {
-					panic("invalid value type in context: expected *RequestScope")
+					panic("corrupted context: expected *RequestScope")
 				}
 
 				if sc.AccessDenied {

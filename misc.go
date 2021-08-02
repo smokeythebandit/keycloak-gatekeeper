@@ -36,7 +36,7 @@ func (r *oauthProxy) revokeProxy(w http.ResponseWriter, req *http.Request) conte
 		var ok bool
 		scope, ok = sc.(*RequestScope)
 		if !ok {
-			panic("invalid value type in context: expected *RequestScope")
+			panic("corrupted context: expected *RequestScope")
 		}
 	}
 	scope.AccessDenied = true

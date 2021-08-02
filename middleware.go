@@ -91,7 +91,7 @@ func (r *oauthProxy) loggingMiddleware(next http.Handler) http.Handler {
 		start := time.Now()
 		resp, ok := w.(middleware.WrapResponseWriter)
 		if !ok {
-			panic("invalid type in ResponseWriter: expected middleware.WrapResponseWriter")
+			panic("middleware does not implement go-chi.middleware.WrapResponseWriter")
 		}
 		next.ServeHTTP(resp, req.WithContext(ctx))
 		addr := req.RemoteAddr
@@ -128,7 +128,7 @@ func (r *oauthProxy) authenticationMiddleware() func(http.Handler) http.Handler 
 			// create the request scope
 			scope, ok := req.Context().Value(contextScopeName).(*RequestScope)
 			if !ok {
-				panic("invalid value type in context: expected *RequestScope")
+				panic("corrupted context: expected *RequestScope")
 			}
 			scope.Identity = user
 			ctx = context.WithValue(ctx, contextScopeName, scope)
@@ -272,7 +272,7 @@ func (r *oauthProxy) admissionMiddleware(resource *Resource) func(http.Handler) 
 			// we don't need to continue is a decision has been made
 			scope, ok := ctx.Value(contextScopeName).(*RequestScope)
 			if !ok {
-				panic("invalid value type in context: expected *RequestScope")
+				panic("corrupted context: expected *RequestScope")
 			}
 			if scope.AccessDenied {
 				next.ServeHTTP(w, req)
@@ -401,7 +401,7 @@ func (r *oauthProxy) identityHeadersMiddleware(custom []string) func(http.Handle
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			scope, ok := req.Context().Value(contextScopeName).(*RequestScope)
 			if !ok {
-				panic("invalid value type in context: expected *RequestScope")
+				panic("corrupted context: expected *RequestScope")
 			}
 			if scope.Identity != nil {
 				user := scope.Identity
@@ -524,7 +524,7 @@ func (r *oauthProxy) csrfSkipResourceMiddleware(resource *Resource) func(http.Ha
 			return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 				scope, ok := req.Context().Value(contextScopeName).(*RequestScope)
 				if !ok {
-					panic("invalid value type in context: expected *RequestScope")
+					panic("corrupted context: expected *RequestScope")
 				}
 
 				// not authenticated, CSRF is irrelevant here
@@ -556,7 +556,7 @@ func (r *oauthProxy) csrfHeaderMiddleware() func(next http.Handler) http.Handler
 				// skip unauthenticated requests
 				scope, ok := req.Context().Value(contextScopeName).(*RequestScope)
 				if !ok {
-					panic("invalid value type in context: expected *RequestScope")
+					panic("corrupted context: expected *RequestScope")
 				}
 
 				if scope == nil || scope.AccessDenied || scope.Identity == nil {
@@ -615,7 +615,7 @@ func proxyDenyMiddleware(next http.Handler) http.Handler {
 			var ok bool
 			scope, ok = sc.(*RequestScope)
 			if !ok {
-				panic("invalid value type in context: expected *RequestScope")
+				panic("corrupted context: expected *RequestScope")
 			}
 		}
 		scope.AccessDenied = true

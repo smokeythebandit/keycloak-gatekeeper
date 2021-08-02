@@ -25,6 +25,8 @@ import (
 )
 
 // extractIdentity parse the jwt token and extracts the various elements is order to construct
+//
+// This is function that concentrates keycloak dependencies (i.e. the structure of the token).
 func extractIdentity(token jose.JWT) (*userContext, error) {
 	claims, err := token.Claims()
 	if err != nil {
@@ -69,8 +71,11 @@ func extractIdentity(token jose.JWT) (*userContext, error) {
 			scopes, isMap := list.(map[string]interface{})
 			if isMap {
 				if roles, found := scopes[claimResourceRoles]; found {
-					for _, r := range roles.([]interface{}) {
-						roleList = append(roleList, fmt.Sprintf("%s:%s", name, r))
+					rolesForKey, isSlice := roles.([]interface{})
+					if isSlice {
+						for _, r := range rolesForKey {
+							roleList = append(roleList, fmt.Sprintf("%s:%s", name, r))
+						}
 					}
 				}
 			}

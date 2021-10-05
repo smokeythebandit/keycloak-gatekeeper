@@ -27,8 +27,8 @@ import (
 	"time"
 
 	"github.com/coreos/go-oidc/jose"
+	"github.com/google/uuid"
 	"github.com/rs/cors"
-	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	resty "gopkg.in/resty.v1"
@@ -229,7 +229,7 @@ func (f *fakeProxy) RunTests(t *testing.T, requests []fakeRequest) {
 			l, _ := url.Parse(resp.Header().Get("Location"))
 			assert.True(t, strings.Contains(l.String(), c.ExpectedLocation), "expected location to contain %s", l.String())
 			if l.Query().Get("state") != "" {
-				state, err := uuid.FromString(l.Query().Get("state"))
+				state, err := uuid.Parse(l.Query().Get("state"))
 				if err != nil {
 					assert.Fail(t, "expected state parameter with valid UUID, got: %s with error %s", state.String(), err)
 				}

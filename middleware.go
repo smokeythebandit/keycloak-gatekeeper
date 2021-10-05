@@ -25,8 +25,8 @@ import (
 
 	"github.com/PuerkitoBio/purell"
 	"github.com/go-chi/chi/middleware"
+	"github.com/google/uuid"
 	gcsrf "github.com/gorilla/csrf"
-	uuid "github.com/satori/go.uuid"
 	"github.com/unrolled/secure"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -72,7 +72,7 @@ func (r *oauthProxy) requestIDMiddleware(header string) func(http.Handler) http.
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			if v := req.Header.Get(header); v == "" {
-				req.Header.Set(header, uuid.NewV1().String())
+				req.Header.Set(header, uuid.NewString())
 			}
 
 			next.ServeHTTP(w, req)

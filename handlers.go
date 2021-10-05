@@ -433,7 +433,7 @@ func (r *oauthProxy) logoutHandler(w http.ResponseWriter, req *http.Request) {
 			content, _ := ioutil.ReadAll(response.Body)
 			logger.Error("invalid response from revocation endpoint",
 				zap.Int("status", response.StatusCode),
-				zap.String("response", fmt.Sprintf("%s", content)))
+				zap.ByteString("response", content))
 		}
 	}
 
@@ -672,11 +672,11 @@ func (r *oauthProxy) refreshToken(w http.ResponseWriter, req *http.Request, user
 	}
 
 	if r.useStore() {
-		go func(old, new jose.JWT, encrypted string) {
-			if err := r.DeleteRefreshToken(old); err != nil {
+		go func(oldToken, newToken jose.JWT, encrypted string) {
+			if err := r.DeleteRefreshToken(oldToken); err != nil {
 				logger.Error("failed to remove old token", zap.Error(err))
 			}
-			if err := r.StoreRefreshToken(new, encrypted); err != nil {
+			if err := r.StoreRefreshToken(newToken, encrypted); err != nil {
 				logger.Error("failed to store refresh token", zap.Error(err))
 				return
 			}

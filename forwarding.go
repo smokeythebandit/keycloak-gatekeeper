@@ -1,4 +1,5 @@
-//+build !noforwarding
+//go:build !noforwarding
+// +build !noforwarding
 
 /*
 Copyright 2015 All rights reserved.
@@ -69,7 +70,10 @@ func (r *oauthProxy) createForwardingProxy() error {
 	forwardingHandler := r.forwardProxyHandler()
 
 	// set the http handler
-	proxy := r.upstream.(*goproxy.ProxyHttpServer)
+	proxy, asExpected := r.upstream.(*goproxy.ProxyHttpServer)
+	if !asExpected {
+		panic("internal error: invalid proxy type")
+	}
 	r.router = proxy
 
 	// setup the tls configuration
@@ -96,7 +100,10 @@ func (r *oauthProxy) createForwardingProxy() error {
 	proxy.OnResponse().DoFunc(func(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Response {
 		// @NOTES, somewhat annoying but goproxy hands back a nil response on proxy client errors
 		if resp != nil && r.config.EnableLogging {
-			start := ctx.UserData.(time.Time)
+			start, asExpectedTime := ctx.UserData.(time.Time)
+			if !asExpectedTime {
+				panic("internal error: invalid userData type: wants time.Time")
+			}
 			latency := time.Since(start)
 			latencyMetric.Observe(latency.Seconds())
 			r.log.Info("client request",
@@ -114,6 +121,7 @@ func (r *oauthProxy) createForwardingProxy() error {
 	proxy.OnRequest().DoFunc(func(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Request, *http.Response) {
 		ctx.UserData = time.Now()
 		forwardingHandler(req, ctx.Resp)
+
 		return req, ctx.Resp
 	})
 

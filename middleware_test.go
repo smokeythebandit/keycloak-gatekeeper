@@ -114,6 +114,7 @@ func (f *fakeProxy) getServiceURL() string {
 }
 
 // RunTests performs a series of requests against a fake proxy service
+// nolint: cyclop
 func (f *fakeProxy) RunTests(t *testing.T, requests []fakeRequest) {
 	defer func() {
 		f.idp.Close()

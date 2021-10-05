@@ -270,7 +270,11 @@ func (r *oauthProxy) proxyMiddleware(resource *Resource) func(http.Handler) http
 			// @step: retrieve the request scope
 			scope := req.Context().Value(contextScopeName)
 			if scope != nil {
-				sc := scope.(*RequestScope)
+				sc, ok := scope.(*RequestScope)
+				if !ok {
+					panic("invalid value type in context: expected *RequestScope")
+				}
+
 				if sc.AccessDenied {
 					return
 				}
@@ -349,6 +353,7 @@ func (r *oauthProxy) createStdProxy(upstream *url.URL) error {
 	}
 
 	transport := &http.Transport{
+		ForceAttemptHTTP2:     true,
 		DialContext:           dialer,
 		TLSClientConfig:       tlsConfig,
 		TLSHandshakeTimeout:   r.config.UpstreamTLSHandshakeTimeout,

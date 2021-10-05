@@ -506,9 +506,7 @@ func (r *oauthProxy) newOpenIDClient() (*oidc.Client, oidc.ProviderConfig, *http
 	var config oidc.ProviderConfig
 
 	// step: fix up the url if required, the underlying lib will add the .well-known/openid-configuration to the discovery url for us.
-	if strings.HasSuffix(r.config.DiscoveryURL, "/.well-known/openid-configuration") {
-		r.config.DiscoveryURL = strings.TrimSuffix(r.config.DiscoveryURL, "/.well-known/openid-configuration")
-	}
+	r.config.DiscoveryURL = strings.TrimSuffix(r.config.DiscoveryURL, "/.well-known/openid-configuration")
 
 	// step: create a idp http client
 	var pool *x509.CertPool

@@ -31,6 +31,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/net/http2"
 )
 
@@ -290,7 +291,9 @@ func runTestConnect(t *testing.T, config *Config, listener, route string) (strin
 	assert.JSONEq(t, `{"message": "ok"}`, string(buf))
 
 	// returns all collected cookies during the handshake
-	collector := client.Transport.(controlledRedirect)
+	collector, ok := client.Transport.(controlledRedirect)
+	require.True(t, ok)
+
 	collected := make([]*http.Cookie, 0, 10)
 	for _, ck := range collector.CollectedCookies {
 		collected = append(collected, ck)

@@ -153,6 +153,7 @@ func runTestTLSApp(t *testing.T, listener, route string) error {
 func runTestTLSConnect(t *testing.T, config *Config, listener, route string) (string, []*http.Cookie, error) {
 	transport := &http.Transport{
 		TLSClientConfig: &tls.Config{
+			MinVersion: tls.VersionTLS12,
 			RootCAs:    makeTestCACertPool(),
 			NextProtos: []string{"h2", "http/1.1"},
 		},
@@ -204,7 +205,9 @@ func runTestTLSConnect(t *testing.T, config *Config, listener, route string) (st
 	assert.JSONEq(t, `{"message": "ok"}`, string(buf))
 
 	// returns all collected cookies during the handshake
-	collector := client.Transport.(controlledRedirect)
+	collector, ok := client.Transport.(controlledRedirect)
+	require.True(t, ok)
+
 	collected := make([]*http.Cookie, 0, 10)
 	for _, ck := range collector.CollectedCookies {
 		collected = append(collected, ck)
@@ -381,6 +384,7 @@ func TestTLSUpstream(t *testing.T) {
 	// scenario 1: routing to upstream, w/ TLS and HTTP/2
 	transport := &http.Transport{
 		TLSClientConfig: &tls.Config{
+			MinVersion: tls.VersionTLS12,
 			RootCAs:    makeTestCACertPool(),
 			NextProtos: []string{"h2", "http/1.1"},
 		},
@@ -452,9 +456,12 @@ func TestTLSUpstream(t *testing.T) {
 	require.Contains(t, claims, "jti")
 	require.Contains(t, claims, "exp")
 
-	iat := claims["iat"].(float64)
-	expires := claims["exp"].(float64)
-	jti := claims["jti"].(string)
+	iat, ok := claims["iat"].(float64)
+	require.True(t, ok)
+	expires, ok := claims["exp"].(float64)
+	require.True(t, ok)
+	jti, ok := claims["jti"].(string)
+	require.True(t, ok)
 
 	// test refresh endpoint: this returns the json content of a refreshed access token
 	// cookie is updated as well
@@ -481,9 +488,12 @@ func TestTLSUpstream(t *testing.T) {
 	require.Contains(t, claims, "jti")
 	require.Contains(t, claims, "exp")
 
-	newiat := claims["iat"].(float64)
-	newexpires := claims["exp"].(float64)
-	newjti := claims["jti"].(string)
+	newiat, ok := claims["iat"].(float64)
+	require.True(t, ok)
+	newexpires, ok := claims["exp"].(float64)
+	require.True(t, ok)
+	newjti, ok := claims["jti"].(string)
+	require.True(t, ok)
 	assert.True(t, iat < newiat)
 	assert.True(t, expires < newexpires)
 	assert.NotEqual(t, jti, newjti)
@@ -501,9 +511,12 @@ func TestTLSUpstream(t *testing.T) {
 	require.Contains(t, accessClaims, "jti")
 	require.Contains(t, accessClaims, "exp")
 
-	iat = accessClaims["iat"].(float64)
-	expires = accessClaims["exp"].(float64)
-	jti = accessClaims["jti"].(string)
+	iat, ok = accessClaims["iat"].(float64)
+	require.True(t, ok)
+	expires, ok = accessClaims["exp"].(float64)
+	require.True(t, ok)
+	jti, ok = accessClaims["jti"].(string)
+	require.True(t, ok)
 
 	assert.Equal(t, newiat, iat)
 	assert.Equal(t, newexpires, expires)
@@ -517,7 +530,8 @@ func TestTLSUpstream(t *testing.T) {
 	refreshClaims, err := decodedRefreshToken.Claims()
 	require.NoError(t, err)
 	require.Contains(t, refreshClaims, "jti")
-	jti = refreshClaims["jti"].(string)
+	jti, ok = refreshClaims["jti"].(string)
+	require.True(t, ok)
 	// refresh token is a different token
 	assert.NotEqual(t, jti, newjti)
 

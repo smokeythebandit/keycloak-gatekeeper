@@ -349,6 +349,7 @@ func (r *oauthProxy) createStdProxy(upstream *url.URL) error {
 	}
 
 	transport := &http.Transport{
+		ForceAttemptHTTP2:     true,
 		DialContext:           dialer,
 		TLSClientConfig:       tlsConfig,
 		TLSHandshakeTimeout:   r.config.UpstreamTLSHandshakeTimeout,

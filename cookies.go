@@ -21,7 +21,7 @@ import (
 	"strings"
 	"time"
 
-	uuid "github.com/satori/go.uuid"
+	"github.com/google/uuid"
 )
 
 // SameSite cookie config options
@@ -171,8 +171,9 @@ func (r *oauthProxy) dropRefreshTokenCookie(req *http.Request, w http.ResponseWr
 
 // writeStateParameterCookie sets a state parameter cookie into the response
 func (r *oauthProxy) writeStateParameterCookie(req *http.Request, w http.ResponseWriter) string {
-	uuid := uuid.NewV4().String()
+	uuid := uuid.NewString()
 	r.dropCookie(w, req.Host, requestStateCookie, uuid, 0)
+
 	return uuid
 }
 

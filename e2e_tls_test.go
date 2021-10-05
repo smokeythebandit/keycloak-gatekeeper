@@ -458,8 +458,10 @@ func TestTLSUpstream(t *testing.T) {
 
 	iat, ok := claims["iat"].(float64)
 	require.True(t, ok)
+
 	expires, ok := claims["exp"].(float64)
 	require.True(t, ok)
+
 	jti, ok := claims["jti"].(string)
 	require.True(t, ok)
 
@@ -490,10 +492,13 @@ func TestTLSUpstream(t *testing.T) {
 
 	newiat, ok := claims["iat"].(float64)
 	require.True(t, ok)
+
 	newexpires, ok := claims["exp"].(float64)
 	require.True(t, ok)
+
 	newjti, ok := claims["jti"].(string)
 	require.True(t, ok)
+
 	assert.True(t, iat < newiat)
 	assert.True(t, expires < newexpires)
 	assert.NotEqual(t, jti, newjti)
@@ -513,8 +518,10 @@ func TestTLSUpstream(t *testing.T) {
 
 	iat, ok = accessClaims["iat"].(float64)
 	require.True(t, ok)
+
 	expires, ok = accessClaims["exp"].(float64)
 	require.True(t, ok)
+
 	jti, ok = accessClaims["jti"].(string)
 	require.True(t, ok)
 
@@ -530,8 +537,10 @@ func TestTLSUpstream(t *testing.T) {
 	refreshClaims, err := decodedRefreshToken.Claims()
 	require.NoError(t, err)
 	require.Contains(t, refreshClaims, "jti")
+
 	jti, ok = refreshClaims["jti"].(string)
 	require.True(t, ok)
+
 	// refresh token is a different token
 	assert.NotEqual(t, jti, newjti)
 

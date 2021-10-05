@@ -159,7 +159,7 @@ func TestAdmin(t *testing.T) {
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	buf, erb = ioutil.ReadAll(resp.Body)
 	assert.NoError(t, erb)
-	assert.Contains(t, string(buf), `proxy_request_duration`)
+	assert.Contains(t, string(buf), `proxy_request_duration_seconds`)
 
 	// test profiling/debug endpoint
 	u, _ = url.Parse("http://" + e2eAdminEndpointListener + debugURL + "/symbol")
@@ -225,5 +225,5 @@ func TestAdmin(t *testing.T) {
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	buf, erb = ioutil.ReadAll(resp.Body)
 	assert.NoError(t, erb)
-	assert.Contains(t, string(buf), `proxy_request_duration`)
+	assert.Contains(t, string(buf), `proxy_request_duration_seconds`)
 }

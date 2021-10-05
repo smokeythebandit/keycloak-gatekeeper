@@ -26,7 +26,7 @@ import (
 	"testing"
 	"time"
 
-	uuid "github.com/satori/go.uuid"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -112,7 +112,7 @@ func TestGetRequestHostURL(t *testing.T) {
 
 func BenchmarkUUID(b *testing.B) {
 	for n := 0; n < b.N; n++ {
-		s := uuid.NewV1()
+		s := uuid.New()
 		_ = s.String()
 	}
 }

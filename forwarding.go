@@ -72,7 +72,7 @@ func (r *oauthProxy) createForwardingProxy() error {
 	// set the http handler
 	proxy, asExpected := r.upstream.(*goproxy.ProxyHttpServer)
 	if !asExpected {
-		panic("internal error: invalid proxy type")
+		panic("upstream does not implement forwarding-proxy ProxyHttpServer")
 	}
 	r.router = proxy
 
@@ -102,8 +102,11 @@ func (r *oauthProxy) createForwardingProxy() error {
 		if resp != nil && r.config.EnableLogging {
 			start, asExpectedTime := ctx.UserData.(time.Time)
 			if !asExpectedTime {
-				panic("internal error: invalid userData type: wants time.Time")
+				r.log.Error("corrupted context: expected UserData to be time.Time. Skipping actual log entry")
+
+				return resp
 			}
+
 			latency := time.Since(start)
 			latencyMetric.Observe(latency.Seconds())
 			r.log.Info("client request",

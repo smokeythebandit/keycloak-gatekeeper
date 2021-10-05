@@ -259,20 +259,20 @@ func (r *oauthProxy) proxyMiddleware(resource *Resource) func(http.Handler) http
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			next.ServeHTTP(w, req)
-
 			_, span, logger := r.traceSpan(req.Context(), "reverse proxy middleware")
 			if span != nil {
 				defer span.End()
 				propagateSpan(span, req)
 			}
 
+			next.ServeHTTP(w, req)
+
 			// @step: retrieve the request scope
 			scope := req.Context().Value(contextScopeName)
 			if scope != nil {
 				sc, ok := scope.(*RequestScope)
 				if !ok {
-					panic("invalid value type in context: expected *RequestScope")
+					panic("corrupted context: expected *RequestScope")
 				}
 
 				if sc.AccessDenied {

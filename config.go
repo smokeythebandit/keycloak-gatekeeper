@@ -156,6 +156,22 @@ func parseTLS(config *tlsAdvancedConfig) (*tlsSettings, error) {
 
 	parsed.tlsPreferServerCipherSuites = config.tlsPreferServerCipherSuites || config.tlsUseModernSettings
 
+	if err := checkTLSVersion(config, parsed); err != nil {
+		return nil, err
+	}
+
+	if err := checkTLSCurve(config, parsed); err != nil {
+		return nil, err
+	}
+
+	if err := checkTLSCipher(config, parsed); err != nil {
+		return nil, err
+	}
+
+	return parsed, nil
+}
+
+func checkTLSVersion(config *tlsAdvancedConfig, parsed *tlsSettings) error {
 	if config.tlsMinVersion != "" {
 		switch config.tlsMinVersion {
 		case "TLS1.0":
@@ -167,134 +183,166 @@ func parseTLS(config *tlsAdvancedConfig) (*tlsSettings, error) {
 		case "TLS1.3":
 			parsed.tlsMinVersion = tls.VersionTLS13
 		default:
-			return nil, errors.New("invalid TLS version configured. Accepted values are: TLS1.0, TLS1.1, TLS1.2, TLS.1.3")
+			return errors.New("invalid TLS version configured. Accepted values are: TLS1.0, TLS1.1, TLS1.2, TLS.1.3")
 		}
-	} else if config.tlsUseModernSettings {
+
+		return nil
+	}
+
+	if config.tlsUseModernSettings {
 		// standard modern setting
 		// https://www.owasp.org/index.php/Transport_Layer_Protection_Cheat_Sheet#Rule_-_Only_Support_Strong_Protocols
 		parsed.tlsMinVersion = tls.VersionTLS12
 	}
 
-	if config.tlsUseModernSettings || len(config.tlsCurvePreferences) > 0 {
-		if len(config.tlsCurvePreferences) > 0 {
-			parsed.tlsCurvePreferences = make([]tls.CurveID, 0, len(config.tlsCurvePreferences))
-			for _, curveName := range config.tlsCurvePreferences {
-				switch curveName {
-				case "P256":
-					parsed.tlsCurvePreferences = append(parsed.tlsCurvePreferences, tls.CurveP256)
-				case "P384":
-					parsed.tlsCurvePreferences = append(parsed.tlsCurvePreferences, tls.CurveP384)
-				case "P521":
-					parsed.tlsCurvePreferences = append(parsed.tlsCurvePreferences, tls.CurveP521)
-				case "X25519":
-					parsed.tlsCurvePreferences = append(parsed.tlsCurvePreferences, tls.X25519)
-				default:
-					return nil, errors.New("invalid TLS curve configured. Accepted values are: P256, P384, P521, X25519")
-				}
-			}
-		} else if config.tlsUseModernSettings {
-			// standard modern settings
-			// Only use curves which have assembly implementations
-			// https://github.com/golang/go/tree/master/src/crypto/elliptic
-			parsed.tlsCurvePreferences = []tls.CurveID{
-				tls.CurveP256,
-				tls.X25519,
-			}
+	return nil
+}
+
+func checkTLSCipher(config *tlsAdvancedConfig, parsed *tlsSettings) error {
+	if !config.tlsUseModernSettings && len(config.tlsCipherSuites) == 0 {
+		return nil
+	}
+
+	parsed.tlsCipherSuites = make([]uint16, 0, len(config.tlsCurvePreferences))
+	for _, cipher := range config.tlsCipherSuites {
+		asGoCipher, err := parseTLSCipher(cipher)
+		if err != nil {
+			return err
+		}
+
+		parsed.tlsCipherSuites = append(parsed.tlsCipherSuites, asGoCipher)
+	}
+
+	if config.tlsUseModernSettings && len(config.tlsCurvePreferences) == 0 {
+		// Use modern tls mode https://wiki.mozilla.org/Security/Server_Side_TLS#Modern_compatibility
+		// See security linter code: https://github.com/securego/gosec/blob/master/rules/tls_config.go#L11
+		// These ciphersuites support Forward Secrecy: https://en.wikipedia.org/wiki/Forward_secrecy
+		parsed.tlsCipherSuites = []uint16{
+			tls.TLS_CHACHA20_POLY1305_SHA256,
+			tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
+			tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+			tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+			tls.TLS_AES_128_GCM_SHA256,
+			tls.TLS_AES_256_GCM_SHA384,
 		}
 	}
 
-	if config.tlsUseModernSettings || len(config.tlsCipherSuites) > 0 {
-		parsed.tlsCipherSuites = make([]uint16, 0, len(config.tlsCurvePreferences))
-		for _, cipher := range config.tlsCipherSuites {
-			switch cipher {
-			case "TLS_FALLBACK_SCSV":
-				parsed.tlsCipherSuites = append(parsed.tlsCipherSuites, tls.TLS_FALLBACK_SCSV)
-			case "TLS_RSA_WITH_RC4_128_SHA":
-				parsed.tlsCipherSuites = append(parsed.tlsCipherSuites, tls.TLS_RSA_WITH_RC4_128_SHA)
-			case "TLS_RSA_WITH_3DES_EDE_CBC_SHA":
-				parsed.tlsCipherSuites = append(parsed.tlsCipherSuites, tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA)
-			case "TLS_RSA_WITH_AES_128_CBC_SHA":
-				parsed.tlsCipherSuites = append(parsed.tlsCipherSuites, tls.TLS_RSA_WITH_AES_128_CBC_SHA)
-			case "TLS_RSA_WITH_AES_256_CBC_SHA":
-				parsed.tlsCipherSuites = append(parsed.tlsCipherSuites, tls.TLS_RSA_WITH_AES_256_CBC_SHA)
-			case "TLS_RSA_WITH_AES_128_CBC_SHA256":
-				parsed.tlsCipherSuites = append(parsed.tlsCipherSuites, tls.TLS_RSA_WITH_AES_128_CBC_SHA256)
-			case "TLS_RSA_WITH_AES_128_GCM_SHA256":
-				parsed.tlsCipherSuites = append(parsed.tlsCipherSuites, tls.TLS_RSA_WITH_AES_128_GCM_SHA256)
-			case "TLS_RSA_WITH_AES_256_GCM_SHA384":
-				parsed.tlsCipherSuites = append(parsed.tlsCipherSuites, tls.TLS_RSA_WITH_AES_256_GCM_SHA384)
-			case "TLS_ECDHE_ECDSA_WITH_RC4_128_SHA":
-				parsed.tlsCipherSuites = append(parsed.tlsCipherSuites, tls.TLS_ECDHE_ECDSA_WITH_RC4_128_SHA)
-			case "TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA":
-				parsed.tlsCipherSuites = append(parsed.tlsCipherSuites, tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA)
-			case "TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA":
-				parsed.tlsCipherSuites = append(parsed.tlsCipherSuites, tls.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA)
-			case "TLS_ECDHE_RSA_WITH_RC4_128_SHA":
-				parsed.tlsCipherSuites = append(parsed.tlsCipherSuites, tls.TLS_ECDHE_RSA_WITH_RC4_128_SHA)
-			case "TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA":
-				parsed.tlsCipherSuites = append(parsed.tlsCipherSuites, tls.TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA)
-			case "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA":
-				parsed.tlsCipherSuites = append(parsed.tlsCipherSuites, tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA)
-			case "TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA":
-				parsed.tlsCipherSuites = append(parsed.tlsCipherSuites, tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA)
-			case "TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256":
-				parsed.tlsCipherSuites = append(parsed.tlsCipherSuites, tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256)
-			case "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256":
-				parsed.tlsCipherSuites = append(parsed.tlsCipherSuites, tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256)
-			case "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256":
-				parsed.tlsCipherSuites = append(parsed.tlsCipherSuites, tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256)
-			case "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256":
-				parsed.tlsCipherSuites = append(parsed.tlsCipherSuites, tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256)
-			case "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384":
-				parsed.tlsCipherSuites = append(parsed.tlsCipherSuites, tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384)
-			case "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384":
-				parsed.tlsCipherSuites = append(parsed.tlsCipherSuites, tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384)
-			case "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305":
-				parsed.tlsCipherSuites = append(parsed.tlsCipherSuites, tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305)
-			case "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305":
-				parsed.tlsCipherSuites = append(parsed.tlsCipherSuites, tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305)
-			case "TLS_CHACHA20_POLY1305_SHA256":
-				parsed.tlsCipherSuites = append(parsed.tlsCipherSuites, tls.TLS_CHACHA20_POLY1305_SHA256)
-			case "TLS_AES_128_GCM_SHA256":
-				parsed.tlsCipherSuites = append(parsed.tlsCipherSuites, tls.TLS_AES_128_GCM_SHA256)
-			case "TLS_AES_256_GCM_SHA384":
-				parsed.tlsCipherSuites = append(parsed.tlsCipherSuites, tls.TLS_AES_256_GCM_SHA384)
-			default:
-				return nil, errors.New("invalid TLS cipher suite configured. Accepted values are listed at https://golang.org/pkg/crypto/tls/#pkg-constants")
+	// when some cipher preferences are explicitly provided, enforce the presence of TLS_FALLBACK_SCSV
+	// at the top of cipher suites preferences.
+	// When no suites are specified, stick to golang's defaults.
+	if len(parsed.tlsCipherSuites) > 0 {
+		enforcedSCSV := make([]uint16, 1, len(parsed.tlsCipherSuites)+1)
+		enforcedSCSV[0] = tls.TLS_FALLBACK_SCSV
+		for _, cph := range parsed.tlsCipherSuites {
+			if cph == tls.TLS_FALLBACK_SCSV {
+				continue
 			}
+			enforcedSCSV = append(enforcedSCSV, cph)
 		}
-		if config.tlsUseModernSettings && len(config.tlsCurvePreferences) == 0 {
-			// Use modern tls mode https://wiki.mozilla.org/Security/Server_Side_TLS#Modern_compatibility
-			// See security linter code: https://github.com/securego/gosec/blob/master/rules/tls_config.go#L11
-			// These ciphersuites support Forward Secrecy: https://en.wikipedia.org/wiki/Forward_secrecy
-			parsed.tlsCipherSuites = []uint16{
-				tls.TLS_CHACHA20_POLY1305_SHA256,
-				tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
-				tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
-				tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
-				tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
-				tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
-				tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
-				tls.TLS_AES_128_GCM_SHA256,
-				tls.TLS_AES_256_GCM_SHA384,
-			}
-		}
-		// when some cipher preferences are explicitly provided, enforce the presence of TLS_FALLBACK_SCSV
-		// at the top of cipher suites preferences.
-		// When no suites are specified, stick to golang's defaults.
-		if len(parsed.tlsCipherSuites) > 0 {
-			enforcedSCSV := make([]uint16, 1, len(parsed.tlsCipherSuites)+1)
-			enforcedSCSV[0] = tls.TLS_FALLBACK_SCSV
-			for _, cph := range parsed.tlsCipherSuites {
-				if cph == tls.TLS_FALLBACK_SCSV {
-					continue
-				}
-				enforcedSCSV = append(enforcedSCSV, cph)
-			}
-			parsed.tlsCipherSuites = enforcedSCSV
-		}
+		parsed.tlsCipherSuites = enforcedSCSV
 	}
-	return parsed, nil
+
+	return nil
+}
+
+func parseTLSCipher(cipher string) (uint16, error) {
+	switch cipher {
+	case "TLS_FALLBACK_SCSV":
+		return tls.TLS_FALLBACK_SCSV, nil
+	case "TLS_RSA_WITH_RC4_128_SHA":
+		return tls.TLS_RSA_WITH_RC4_128_SHA, nil
+	case "TLS_RSA_WITH_3DES_EDE_CBC_SHA":
+		return tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA, nil
+	case "TLS_RSA_WITH_AES_128_CBC_SHA":
+		return tls.TLS_RSA_WITH_AES_128_CBC_SHA, nil
+	case "TLS_RSA_WITH_AES_256_CBC_SHA":
+		return tls.TLS_RSA_WITH_AES_256_CBC_SHA, nil
+	case "TLS_RSA_WITH_AES_128_CBC_SHA256":
+		return tls.TLS_RSA_WITH_AES_128_CBC_SHA256, nil
+	case "TLS_RSA_WITH_AES_128_GCM_SHA256":
+		return tls.TLS_RSA_WITH_AES_128_GCM_SHA256, nil
+	case "TLS_RSA_WITH_AES_256_GCM_SHA384":
+		return tls.TLS_RSA_WITH_AES_256_GCM_SHA384, nil
+	case "TLS_ECDHE_ECDSA_WITH_RC4_128_SHA":
+		return tls.TLS_ECDHE_ECDSA_WITH_RC4_128_SHA, nil
+	case "TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA":
+		return tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, nil
+	case "TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA":
+		return tls.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, nil
+	case "TLS_ECDHE_RSA_WITH_RC4_128_SHA":
+		return tls.TLS_ECDHE_RSA_WITH_RC4_128_SHA, nil
+	case "TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA":
+		return tls.TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA, nil
+	case "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA":
+		return tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, nil
+	case "TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA":
+		return tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, nil
+	case "TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256":
+		return tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, nil
+	case "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256":
+		return tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256, nil
+	case "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256":
+		return tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, nil
+	case "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256":
+		return tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, nil
+	case "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384":
+		return tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, nil
+	case "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384":
+		return tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, nil
+	case "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305":
+		return tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305, nil
+	case "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305":
+		return tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305, nil
+	// TLS 1.3 cipher suites
+	case "TLS_AES_128_GCM_SHA256":
+		return tls.TLS_AES_128_GCM_SHA256, nil
+	case "TLS_AES_256_GCM_SHA384":
+		return tls.TLS_AES_256_GCM_SHA384, nil
+	case "TLS_CHACHA20_POLY1305_SHA256":
+		return tls.TLS_CHACHA20_POLY1305_SHA256, nil
+	default:
+		return 0, errors.New("invalid TLS cipher suite configured. Accepted values are listed at https://golang.org/pkg/crypto/tls/#pkg-constants")
+	}
+}
+
+func checkTLSCurve(config *tlsAdvancedConfig, parsed *tlsSettings) error {
+	if !config.tlsUseModernSettings && len(config.tlsCurvePreferences) == 0 {
+		return nil
+	}
+
+	if len(config.tlsCurvePreferences) > 0 {
+		parsed.tlsCurvePreferences = make([]tls.CurveID, 0, len(config.tlsCurvePreferences))
+		for _, curveName := range config.tlsCurvePreferences {
+			switch curveName {
+			case "P256":
+				parsed.tlsCurvePreferences = append(parsed.tlsCurvePreferences, tls.CurveP256)
+			case "P384":
+				parsed.tlsCurvePreferences = append(parsed.tlsCurvePreferences, tls.CurveP384)
+			case "P521":
+				parsed.tlsCurvePreferences = append(parsed.tlsCurvePreferences, tls.CurveP521)
+			case "X25519":
+				parsed.tlsCurvePreferences = append(parsed.tlsCurvePreferences, tls.X25519)
+			default:
+				return errors.New("invalid TLS curve configured. Accepted values are: P256, P384, P521, X25519")
+			}
+		}
+
+		return nil
+	}
+
+	// tlsUseModernSettings:
+	// standard modern settings
+	// Only use curves which have assembly implementations
+	// https://github.com/golang/go/tree/master/src/crypto/elliptic
+	parsed.tlsCurvePreferences = []tls.CurveID{
+		tls.CurveP256,
+		tls.X25519,
+	}
+
+	return nil
 }
 
 func (r *Config) isListenValid() error {
@@ -320,36 +368,30 @@ func (r *Config) isListenValid() error {
 }
 
 func (r *Config) isTLSValid() error {
-	if r.TLSCertificate != "" && r.TLSPrivateKey == "" {
-		return errors.New("you have not provided a private key")
+	// main certificate
+	if err := r.isTLSCertValid(); err != nil {
+		return err
 	}
-	if r.TLSAdminCertificate != "" && r.TLSAdminPrivateKey == "" {
-		return errors.New("you have not provided a private key for admin endpoint")
+
+	// certificate for admin endpoint, whe TLS
+	if err := r.isTLSAdminCertValid(); err != nil {
+		return err
 	}
-	if r.TLSPrivateKey != "" && r.TLSCertificate == "" {
-		return errors.New("you have not provided a certificate file")
+
+	// CA certificates
+	if err := r.isTLSCaCertValid(); err != nil {
+		return err
 	}
-	if r.TLSAdminPrivateKey != "" && r.TLSAdminCertificate == "" {
-		return errors.New("you have not provided a certificate file for admin endpoint")
+
+	// allowed client certificates
+	if err := r.isTLSClientCertValid(); err != nil {
+		return err
 	}
-	if r.TLSCertificate != "" && !fileExists(r.TLSCertificate) {
-		return fmt.Errorf("the tls certificate %s does not exist", r.TLSCertificate)
-	}
-	if r.TLSAdminCertificate != "" && !fileExists(r.TLSAdminCertificate) {
-		return fmt.Errorf("the tls certificate %s does not exist for admin endpoint", r.TLSAdminCertificate)
-	}
-	if r.TLSPrivateKey != "" && !fileExists(r.TLSPrivateKey) {
-		return fmt.Errorf("the tls private key %s does not exist", r.TLSPrivateKey)
-	}
-	if r.TLSAdminPrivateKey != "" && !fileExists(r.TLSAdminPrivateKey) {
-		return fmt.Errorf("the tls private key %s does not exist for admin endpoint", r.TLSAdminPrivateKey)
-	}
-	if r.TLSCaCertificate != "" && !fileExists(r.TLSCaCertificate) {
-		return fmt.Errorf("the tls ca certificate file %s does not exist", r.TLSCaCertificate)
-	}
-	if r.TLSAdminCaCertificate != "" && !fileExists(r.TLSAdminCaCertificate) {
-		return fmt.Errorf("the tls ca certificate file %s does not exist for admin endpoint", r.TLSAdminCaCertificate)
-	}
+
+	return nil
+}
+
+func (r *Config) isTLSClientCertValid() error {
 	if r.TLSClientCertificate != "" && len(r.TLSClientCertificates) > 0 {
 		return fmt.Errorf("specify only one of single TLSAdminClientCertificate or array TLSAdminClientCertificates")
 	}
@@ -361,6 +403,7 @@ func (r *Config) isTLSValid() error {
 			return fmt.Errorf("the tls client certificate %s does not exist", clientCertFile)
 		}
 	}
+
 	if r.TLSAdminClientCertificate != "" && len(r.TLSAdminClientCertificates) > 0 {
 		return fmt.Errorf("specify only one of single TLSAdminClientCertificate or array TLSAdminClientCertificates")
 	}
@@ -372,6 +415,52 @@ func (r *Config) isTLSValid() error {
 			return fmt.Errorf("the tls client certificate %s does not exist for admin endpoint", clientCertFile)
 		}
 	}
+
+	return nil
+}
+
+func (r *Config) isTLSCaCertValid() error {
+	if r.TLSCaCertificate != "" && !fileExists(r.TLSCaCertificate) {
+		return fmt.Errorf("the tls ca certificate file %s does not exist", r.TLSCaCertificate)
+	}
+	if r.TLSAdminCaCertificate == "" && r.TLSAdminPrivateKey != "" {
+		return errors.New("you have not provided a certificate file for admin endpoint")
+	}
+
+	return nil
+}
+
+func (r *Config) isTLSAdminCertValid() error {
+	if r.TLSAdminCertificate != "" && r.TLSAdminPrivateKey == "" {
+		return errors.New("you have not provided a private key for admin endpoint")
+	}
+	if r.TLSAdminPrivateKey != "" && !fileExists(r.TLSAdminPrivateKey) {
+		return fmt.Errorf("the tls private key %s does not exist for admin endpoint", r.TLSAdminPrivateKey)
+	}
+	if r.TLSAdminCertificate != "" && !fileExists(r.TLSAdminCertificate) {
+		return fmt.Errorf("the tls certificate %s does not exist for admin endpoint", r.TLSAdminCertificate)
+	}
+	if r.TLSAdminCaCertificate != "" && !fileExists(r.TLSAdminCaCertificate) {
+		return fmt.Errorf("the tls ca certificate file %s does not exist for admin endpoint", r.TLSAdminCaCertificate)
+	}
+
+	return nil
+}
+
+func (r *Config) isTLSCertValid() error {
+	if r.TLSCertificate != "" && r.TLSPrivateKey == "" {
+		return errors.New("you have not provided a private key")
+	}
+	if r.TLSCertificate == "" && r.TLSPrivateKey != "" {
+		return errors.New("you have not provided a certificate file")
+	}
+	if r.TLSCertificate != "" && !fileExists(r.TLSCertificate) {
+		return fmt.Errorf("the tls certificate %s does not exist", r.TLSCertificate)
+	}
+	if r.TLSPrivateKey != "" && !fileExists(r.TLSPrivateKey) {
+		return fmt.Errorf("the tls private key %s does not exist", r.TLSPrivateKey)
+	}
+
 	return nil
 }
 
@@ -488,9 +577,9 @@ func (r *Config) isTokenConfigValid() error {
 	if err := r.isDiscoveryValid(); err != nil {
 		return err
 	}
-	if strings.HasSuffix(r.RedirectionURL, "/") {
-		r.RedirectionURL = strings.TrimSuffix(r.RedirectionURL, "/")
-	}
+
+	r.RedirectionURL = strings.TrimSuffix(r.RedirectionURL, "/")
+
 	if r.RedirectionURL != "" {
 		if _, err := url.Parse(r.RedirectionURL); err != nil {
 			return fmt.Errorf("redirection url is not a valid URL: %s", r.RedirectionURL)

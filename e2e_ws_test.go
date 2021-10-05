@@ -271,6 +271,7 @@ func TestWSTLSUpstream(t *testing.T) {
 
 	wsDialer := *websocket.DefaultDialer
 	wsDialer.TLSClientConfig = &tls.Config{
+		MinVersion: tls.VersionTLS12,
 		RootCAs:    makeTestCACertPool(),
 		NextProtos: []string{"http/1.1"}, // h2: not supported by gorilla/websocket
 	}

@@ -66,10 +66,12 @@ func extractIdentity(token jose.JWT) (*userContext, error) {
 	// @step: extract the client roles from the access token
 	if accesses, found := claims[claimResourceAccess].(map[string]interface{}); found {
 		for name, list := range accesses {
-			scopes := list.(map[string]interface{})
-			if roles, found := scopes[claimResourceRoles]; found {
-				for _, r := range roles.([]interface{}) {
-					roleList = append(roleList, fmt.Sprintf("%s:%s", name, r))
+			scopes, isMap := list.(map[string]interface{})
+			if isMap {
+				if roles, found := scopes[claimResourceRoles]; found {
+					for _, r := range roles.([]interface{}) {
+						roleList = append(roleList, fmt.Sprintf("%s:%s", name, r))
+					}
 				}
 			}
 		}

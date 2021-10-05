@@ -1,4 +1,5 @@
-//+build !nostores
+//go:build !nostores
+// +build !nostores
 
 /*
 Copyright 2015 All rights reserved.

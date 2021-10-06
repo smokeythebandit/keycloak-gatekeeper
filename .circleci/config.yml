@@ -57,7 +57,7 @@ jobs:
       - run:
           name: Build tagged docker image then push to gcloud repo
           command: |
-            REPOSITORY="gcr.io/${GOOGLE_PROJECT_ID}"
+            REPOSITORY="gcr.io/onec-co"
             VERSION=$(git describe --tags)
             SHA1=$(git rev-parse HEAD)
             BUILD=$(date +%s)

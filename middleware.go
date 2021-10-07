@@ -149,7 +149,7 @@ func (r *oauthProxy) authenticationMiddleware() func(http.Handler) http.Handler 
 				return
 			}
 
-			if err := verifyToken(r.client, user.token); err != nil {
+			if err := r.verifyToken(r.client, user.token); err != nil {
 				// step: if the error post verification is anything other than a token
 				// expired error we immediately throw an access forbidden - as there is
 				// something messed up in the token

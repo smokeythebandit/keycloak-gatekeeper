@@ -17,6 +17,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -155,6 +156,7 @@ func (r *oauthProxy) oauthCallbackHandler(w http.ResponseWriter, req *http.Reque
 	token, identity, err := parseToken(resp.IDToken)
 	if err != nil {
 		r.accessForbidden(w, req.WithContext(ctx), "unable to parse ID token for identity", err.Error())
+
 		return
 	}
 	access, id, err := parseToken(resp.AccessToken)
@@ -166,8 +168,20 @@ func (r *oauthProxy) oauthCallbackHandler(w http.ResponseWriter, req *http.Reque
 	}
 
 	// step: check the access token is valid
-	if err = verifyToken(r.client, token); err != nil {
-		r.accessForbidden(w, req.WithContext(ctx), "unable to verify the ID token", err.Error())
+	if err = r.verifyToken(r.client, token); err != nil {
+		// if not, we may have a valid session but fail to match extra criteria: logout first so the user does not remain
+		// stuck with a valid session, but no access
+		var sessionToken string
+		if resp.RefreshToken != "" {
+			sessionToken = resp.RefreshToken
+		} else {
+			sessionToken = resp.IDToken
+		}
+		r.commonLogout(ctx, w, req, sessionToken, func(ww http.ResponseWriter) {
+			// always return an error after logout in this case
+			r.accessForbidden(w, req.WithContext(ctx), "unable to verify the ID token", err.Error())
+		}, logger.With(zap.String("email", identity.Email)))
+
 		return
 	}
 	accessToken := token.Encode()
@@ -176,6 +190,7 @@ func (r *oauthProxy) oauthCallbackHandler(w http.ResponseWriter, req *http.Reque
 	if r.config.EnableEncryptedToken || r.config.ForceEncryptedCookie {
 		if accessToken, err = encodeText(accessToken, r.config.EncryptionKey); err != nil {
 			r.errorResponse(w, req.WithContext(ctx), "unable to encode the access token", http.StatusInternalServerError, err)
+
 			return
 		}
 	}
@@ -326,6 +341,40 @@ func (r *oauthProxy) logoutHandler(w http.ResponseWriter, req *http.Request) {
 		defer span.End()
 	}
 
+	// @step: drop the access token
+	user, err := r.getIdentity(req)
+	if err != nil {
+		r.errorResponse(w, req.WithContext(ctx), "", http.StatusBadRequest, nil)
+		return
+	}
+
+	// step: check if the user has a state session and if so revoke it
+	if r.useStore() {
+		go func() {
+			if err := r.DeleteRefreshToken(user.token); err != nil {
+				logger.Error("unable to remove the refresh token from store", zap.Error(err))
+			}
+		}()
+	}
+
+	// step: can either use the id token or the refresh token
+	identityToken := user.token.Encode()
+	if refresh, _, err := r.retrieveRefreshToken(req, user); err == nil {
+		identityToken = refresh
+	}
+
+	r.commonLogout(ctx, w, req, identityToken, func(w http.ResponseWriter) {
+		w.Header().Set("Content-Type", jsonMime)
+		w.WriteHeader(http.StatusOK)
+	}, logger.With(zap.String("email", user.email)))
+}
+
+func (r *oauthProxy) commonLogout(ctx context.Context, w http.ResponseWriter, req *http.Request, token string, successResponder func(http.ResponseWriter), logger Logger) {
+	// @metric increment the logout counter
+	oauthTokensMetric.WithLabelValues("logout").Inc()
+
+	r.clearAllCookies(req, w)
+
 	// @check if the redirection is there
 	var redirectURL string
 	for k := range req.URL.Query() {
@@ -338,40 +387,20 @@ func (r *oauthProxy) logoutHandler(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	// @step: drop the access token
-	user, err := r.getIdentity(req)
-	if err != nil {
-		r.errorResponse(w, req.WithContext(ctx), "", http.StatusBadRequest, nil)
-		return
-	}
-
-	// step: can either use the id token or the refresh token
-	identityToken := user.token.Encode()
-	if refresh, _, err := r.retrieveRefreshToken(req, user); err == nil {
-		identityToken = refresh
-	}
-	r.clearAllCookies(req, w)
-
-	// @metric increment the logout counter
-	oauthTokensMetric.WithLabelValues("logout").Inc()
-
-	// step: check if the user has a state session and if so revoke it
-	if r.useStore() {
-		go func() {
-			if err := r.DeleteRefreshToken(user.token); err != nil {
-				logger.Error("unable to remove the refresh token from store", zap.Error(err))
-			}
-		}()
-	}
-
 	// set the default revocation url
 	revokeDefault := ""
 	if r.idp.EndSessionEndpoint != nil {
 		revokeDefault = r.idp.EndSessionEndpoint.String()
 	}
 	revocationURL := defaultTo(r.config.RevocationEndpoint, revokeDefault)
+	logger.Debug("logout config",
+		zap.String("redirect_url", redirectURL),
+		zap.String("revocation_url", revocationURL),
+		zap.Bool("enable_logout_redirect", r.config.EnableLogoutRedirect),
+	)
 
 	// @check if we should redirect to the provider
+	// NOTE: this endpoint is keycloak-specific
 	if r.config.EnableLogoutRedirect {
 		sendTo := fmt.Sprintf("%s/protocol/openid-connect/logout", strings.TrimSuffix(r.config.DiscoveryURL, "/.well-known/openid-configuration"))
 
@@ -385,6 +414,7 @@ func (r *oauthProxy) logoutHandler(w http.ResponseWriter, req *http.Request) {
 			}
 		}
 
+		logger.Debug("redirecting to logout", zap.String("url", sendTo))
 		r.redirectToURL(fmt.Sprintf("%s?redirect_uri=%s", sendTo, url.QueryEscape(redirectURL)), w, req, http.StatusTemporaryRedirect)
 
 		return
@@ -402,8 +432,9 @@ func (r *oauthProxy) logoutHandler(w http.ResponseWriter, req *http.Request) {
 		encodedID := url.QueryEscape(r.config.ClientID)
 		encodedSecret := url.QueryEscape(r.config.ClientSecret)
 
+		logger.Debug("revoking user session")
 		// step: construct the url for revocation
-		request, err := http.NewRequestWithContext(ctx, http.MethodPost, revocationURL, bytes.NewBufferString(fmt.Sprintf("refresh_token=%s", identityToken)))
+		request, err := http.NewRequestWithContext(ctx, http.MethodPost, revocationURL, bytes.NewBufferString(fmt.Sprintf("refresh_token=%s", token)))
 		if err != nil {
 			r.errorResponse(w, req.WithContext(ctx), "unable to construct the revocation request", http.StatusInternalServerError, err)
 			return
@@ -428,7 +459,7 @@ func (r *oauthProxy) logoutHandler(w http.ResponseWriter, req *http.Request) {
 		// step: check the response
 		switch response.StatusCode {
 		case http.StatusNoContent:
-			logger.Info("successfully logged out of the endpoint", zap.String("email", user.email))
+			logger.Info("successfully logged out of the endpoint")
 		default:
 			content, _ := ioutil.ReadAll(response.Body)
 			logger.Error("invalid response from revocation endpoint",
@@ -439,10 +470,10 @@ func (r *oauthProxy) logoutHandler(w http.ResponseWriter, req *http.Request) {
 
 	// step: should we redirect the user
 	if redirectURL != "" {
+		logger.Debug("redirecting to logout", zap.String("url", redirectURL))
 		r.redirectToURL(redirectURL, w, req.WithContext(ctx), http.StatusTemporaryRedirect)
 	} else {
-		w.Header().Set("Content-Type", jsonMime)
-		w.WriteHeader(http.StatusOK)
+		successResponder(w)
 	}
 }
 

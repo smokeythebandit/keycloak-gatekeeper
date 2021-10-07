@@ -17,13 +17,19 @@ import (
 	spanlog "github.com/oneconcern/keycloak-gatekeeper/internal/log"
 )
 
-// Logger is a simplified abstraction of the zap.Logger
-type Logger interface {
+// Stdlog is a simplified abstraction of the zap.Logger
+type Stdlog interface {
 	Debug(msg string, fields ...zapcore.Field)
 	Info(msg string, fields ...zapcore.Field)
 	Warn(msg string, fields ...zapcore.Field)
 	Error(msg string, fields ...zapcore.Field)
 	Fatal(msg string, fields ...zapcore.Field)
+}
+
+// Logger is a standard logger with a decorator
+type Logger interface {
+	Stdlog
+	With(fields ...zapcore.Field) Logger
 }
 
 // proxyTracingHandler forwards the request to the opencensus tracing handler
@@ -97,24 +103,36 @@ func (r *oauthProxy) proxyTracingMiddleware(next http.Handler) http.Handler {
 	return instrument1(instrument2(next))
 }
 
+type logger struct {
+	Stdlog
+}
+
+func (l logger) With(fields ...zap.Field) Logger {
+	if zlg, ok := l.Stdlog.(*zap.Logger); ok {
+		return logger{Stdlog: zlg.With(fields...)}
+	}
+
+	return l
+}
+
 func (r *oauthProxy) traceSpan(ctx context.Context, title string) (context.Context, *trace.Span, Logger) {
 	if !r.config.EnableTracing {
-		return ctx, nil, r.log
+		return ctx, nil, logger{Stdlog: r.log}
 	}
 	newCtx, span := trace.StartSpan(ctx, title)
-	return newCtx, span, spanlog.New(r.log, span)
+	return newCtx, span, logger{Stdlog: spanlog.New(r.log, span)}
 }
 
 func (r *oauthProxy) traceSpanRequest(req *http.Request) (*trace.Span, Logger) {
 	if !r.config.EnableTracing {
-		return nil, r.log
+		return nil, logger{Stdlog: r.log}
 	}
 	span := trace.FromContext(req.Context())
 
 	if span != nil {
-		return span, spanlog.New(r.log, span)
+		return span, logger{Stdlog: spanlog.New(r.log, span)}
 	}
-	return span, r.log
+	return span, logger{Stdlog: r.log}
 }
 
 func traceError(span *trace.Span, err error, code int) error {

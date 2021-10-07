@@ -28,6 +28,7 @@ import (
 	"github.com/coreos/go-oidc/jose"
 	"github.com/coreos/go-oidc/oauth2"
 	"github.com/coreos/go-oidc/oidc"
+	"go.uber.org/zap"
 )
 
 // getOAuthClient returns a oauth2 client from the openid client
@@ -46,12 +47,48 @@ func (r *oauthProxy) getOAuthClient(redirectionURL string) (*oauth2.Client, erro
 }
 
 // verifyToken verify that the token in the user context is valid
-func verifyToken(client *oidc.Client, token jose.JWT) error {
+func (r *oauthProxy) verifyToken(client *oidc.Client, token jose.JWT) error {
 	if err := client.VerifyJWT(token); err != nil {
 		if strings.Contains(err.Error(), "token is expired") {
 			return ErrAccessTokenExpired
 		}
+
 		return err
+	}
+
+	if len(r.config.RequiredScopes) > 0 {
+		claims, err := token.Claims()
+		if err != nil {
+			return err
+		}
+
+		scopeClaim, ok := claims["scope"]
+		if !ok {
+			return fmt.Errorf("required scope claim absent from token")
+		}
+
+		scopeClaimAsStr, ok := scopeClaim.(string)
+		if !ok {
+			return fmt.Errorf("required scope claim is expected to be a string in token")
+		}
+
+		r.log.Debug("token", zap.Any("claims", claims))
+
+		availableScopes := strings.Split(scopeClaimAsStr, " ")
+
+		for _, required := range r.config.RequiredScopes {
+			found := false
+			for _, available := range availableScopes {
+				if available == required {
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				return fmt.Errorf("required scope %q absent from provided scopes in token", required)
+			}
+		}
 	}
 
 	return nil

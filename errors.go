@@ -94,14 +94,18 @@ func (r *oauthProxy) accessForbidden(w http.ResponseWriter, req *http.Request, m
 	} else {
 		var msg string
 		if len(msgs) > 0 {
-			msg = msgs[0]
-			if len(msgs) > 1 {
-				// extraMsg goes to log but not to be returned as end user error
-				extraMsg := strings.Join(msgs[1:], " ")
-				r.log.Warn(extraMsg)
+			r.log.Warn("user forbidden access", zap.Strings("extra_messages", msgs))
+
+			switch len(msgs) {
+			case 1:
+				msg = msgs[0]
+			default: // > 1
+				msg = strings.Join(msgs[:2], " ")
 			}
 		}
+		// extraMsg goes to log but only the 2 first ones are to be returned as end user error
 		r.errorResponse(w, req, msg, http.StatusForbidden, nil)
 	}
+
 	return r.revokeProxy(w, req)
 }

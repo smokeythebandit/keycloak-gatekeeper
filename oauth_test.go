@@ -322,7 +322,7 @@ func TestTokenExpired(t *testing.T) {
 			t.Errorf("case %d unable to sign the token, error: %s", i, err)
 			continue
 		}
-		err = verifyToken(px.client, *signed)
+		err = px.verifyToken(px.client, *signed)
 		if x.OK && err != nil {
 			t.Errorf("case %d, expected: %t got error: %s", i, x.OK, err)
 		}

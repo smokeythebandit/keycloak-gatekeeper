@@ -495,7 +495,7 @@ func (r *oauthProxy) expirationHandler(w http.ResponseWriter, req *http.Request)
 
 // refreshHandler forces a token refresh
 func (r *oauthProxy) refreshHandler(w http.ResponseWriter, req *http.Request) {
-	ctx, span, logger := r.traceSpan(req.Context(), "logout handler")
+	ctx, span, logger := r.traceSpan(req.Context(), "token refresh handler")
 	if span != nil {
 		defer span.End()
 	}

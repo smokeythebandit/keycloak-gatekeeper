@@ -29,6 +29,7 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/rs/cors"
+	"go.opencensus.io/trace"
 	"go.uber.org/zap"
 	"golang.org/x/net/http2"
 )
@@ -156,7 +157,8 @@ func (r *oauthProxy) createReverseProxy() error {
 			}
 		case x.WhiteListed:
 			e := engine.With(
-				r.proxyMiddleware(x))
+				r.proxyMiddleware(x),
+			)
 			e.Handle(x.URL, http.HandlerFunc(methodNotAllowedHandler))
 			for _, m := range x.Methods {
 				e.MethodFunc(m, x.URL, emptyHandler)
@@ -259,13 +261,13 @@ func (r *oauthProxy) proxyMiddleware(resource *Resource) func(http.Handler) http
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			next.ServeHTTP(w, req)
+
 			_, span, logger := r.traceSpan(req.Context(), "reverse proxy middleware")
 			if span != nil {
 				defer span.End()
 				propagateSpan(span, req)
 			}
-
-			next.ServeHTTP(w, req)
 
 			// @step: retrieve the request scope
 			scope := req.Context().Value(contextScopeName)
@@ -276,6 +278,10 @@ func (r *oauthProxy) proxyMiddleware(resource *Resource) func(http.Handler) http
 				}
 
 				if sc.AccessDenied {
+					if span != nil {
+						span.SetStatus(trace.Status{Code: trace.StatusCodeUnauthenticated, Message: "access denied"})
+					}
+
 					return
 				}
 			}
@@ -373,6 +379,7 @@ func (r *oauthProxy) createStdProxy(upstream *url.URL) error {
 			_, span, logger := r.traceSpan(req.Context(), "reverse proxy middleware")
 			if span != nil {
 				defer span.End()
+				span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: err.Error()})
 			}
 
 			logger.Warn("reverse proxy error", zap.Error(err))

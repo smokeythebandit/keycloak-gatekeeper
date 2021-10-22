@@ -161,6 +161,10 @@ func (r *oauthProxy) useDefaultStack(engine chi.Router) {
 	engine.NotFound(emptyHandler)
 	engine.Use(middleware.Recoverer)
 
+	if r.config.EnableTracing {
+		engine.Use(r.proxyTracingMiddleware)
+	}
+
 	// @check if the request tracking id middleware is enabled
 	if r.config.EnableRequestID {
 		r.log.Info("enabled the correlation request id middleware")
@@ -175,10 +179,6 @@ func (r *oauthProxy) useDefaultStack(engine chi.Router) {
 
 	if r.config.EnableSecurityFilter {
 		engine.Use(r.securityMiddleware)
-	}
-
-	if r.config.EnableTracing {
-		engine.Use(r.proxyTracingMiddleware)
 	}
 }
 

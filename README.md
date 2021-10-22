@@ -112,10 +112,13 @@ enable-profiling: true
 This serves commands from the pprof handler described [here](https://golang.org/pkg/net/http/pprof/#pkg-index).
 
 #### Tracing
+Tracing may be enabled with the `--enable-tracing` flag.
 
 Opencensus tracing may be enabled with the `enable-tracing: true` parameter. When enabled a trace collecting agent _must_ be configured (e.g. Jaeger agent).
 
-The admin listener (or main listener if not enabled) exposes zpages (rpcz, tracez):
+The datadog agent is supported (`--tracing-exporter datadog`). By default, the exporter is for Jaeger.
+
+The admin listener (or main listener if a specific admin listener is not enabled) exposes zpages (rpcz, tracez):
 
 ```
 /oauth/trace/rpcz
@@ -128,6 +131,30 @@ TODOS
 There is still quite some room for improvement:
 
 * [x] opencensus tracing
+* [x] distinguish option to forward Authorization header from X-Auth headers
+* [x] censor kc-csrf cookie upstream
+* [x] censor request_uri cookie upstream
+* [x] fixed obsolete prometheus client usage and associated bad module checksum issue
+* [x] add TLS_FALLBACK_CSCV at the head of configured cipher suites
+* [x] add env to all new config
+* [x] separate port for admin, live status etc
+* [x] enable mutual TLS on admin port server
+* [X] multiple upstream
+* [x] application/json in responses (e.g. errors)
+* [X] cookie compression
+* [x] http2 support (no push)
+* [x] http version logged in debug mode
+* [x] obsolete keep cors headers param
+* [x] authenticate token and logout endpoints
+* [x] conditional compilation to reduce dependencies and binary size
+* [x] allow several client certs for mutual TLS
+* [x] version tagging in consts
+* [x] tests for websockets
+* [x] support token refresh endpoint (e.g for profile update)
+* [x] support datadog trace exporter
+* [x] support blacklisting
+* [x] support multiple URLs per resource config
+* [x] support end to end tracing propagation, with datadog support
 * [ ] cookie compression (allow this as an option)
 * [ ] virtual hosts w/ routing rules
 * [ ] http2 support w/ push
@@ -137,6 +164,18 @@ There is still quite some room for improvement:
 * [ ] support ECDSA-signed tokens
 * [ ] support keycloak client admin URL features (nbf policy push, logout push)
 * [ ] support leeway to avoid shared-state race conditions on refreshing acess tokens with revokable refresh tokens
+* [ ] body regexp routing rules (e.g. graphql POST requests)
+* [ ] cookie compression (as option)
+* [ ] virtual hosts w/ routing rules
+* [ ] http2 support w/ push
+* [ ] csrf cookie w/ session store
+* [ ] refactor session store to move to internal packages
+* [ ] upgrade from coreos/oidc V1
+* [ ] keycloak client registration / admin endpoint
+* [ ] watch refresh client secret
+* [ ] redact own cookies when white listed
+* [ ] support opencensus metrics instead of prometheus
+* [ ] support datadog metrics
 
 Reporting security vulnerabilities
 ----------------------------------

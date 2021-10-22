@@ -26,6 +26,11 @@ import (
 	"time"
 )
 
+const (
+	jaegerExporter  = "jaeger"
+	datadogExporter = "datadog"
+)
+
 // newDefaultConfig returns a initialized config
 func newDefaultConfig() *Config {
 	var hostnames []string
@@ -109,10 +114,6 @@ func (r *Config) isValid() error {
 	if r.EnableTracing && r.TracingAgentEndpoint == "" {
 		return fmt.Errorf("an agent endpoint must be specified when enabling tracing")
 	}
-	const (
-		jaegerExporter  = "jaeger"
-		datadogExporter = "datadog"
-	)
 	if r.EnableTracing && r.TracingExporter != jaegerExporter && r.TracingExporter != datadogExporter {
 		return fmt.Errorf("unsupported trace exporter. Current supported values are %q|%q", jaegerExporter, datadogExporter)
 	}

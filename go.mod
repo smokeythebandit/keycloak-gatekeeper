@@ -8,7 +8,7 @@ require (
 	contrib.go.opencensus.io/exporter/jaeger v0.2.0
 	github.com/DataDog/datadog-go v4.8.2+incompatible // indirect
 	github.com/DataDog/opencensus-go-exporter-datadog v0.0.0-20210527074920-9baf37265e83
-	github.com/Microsoft/go-winio v0.5.0 // indirect
+	github.com/Microsoft/go-winio v0.5.1 // indirect
 	github.com/PuerkitoBio/purell v1.1.1
 	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect
 	github.com/armon/go-proxyproto v0.0.0-20190211145416-68259f75880e
@@ -41,9 +41,9 @@ require (
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.7.0 // indirect
 	go.uber.org/zap v1.19.1
-	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
-	golang.org/x/net v0.0.0-20211005001312-d4b1ae081e3b
-	golang.org/x/sys v0.0.0-20211004093028-2c5d950f24ef // indirect
+	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
+	golang.org/x/net v0.0.0-20211020060615-d418f374d309
+	golang.org/x/sys v0.0.0-20211020174200-9d6173849985 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	google.golang.org/api v0.28.0 // indirect
 	gopkg.in/DataDog/dd-trace-go.v1 v1.33.0 // indirect

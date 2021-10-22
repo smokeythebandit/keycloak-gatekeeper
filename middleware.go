@@ -599,6 +599,7 @@ func (r *oauthProxy) csrfProtectMiddleware() func(next http.Handler) http.Handle
 	if r.config.EnableCSRF {
 		return r.csrf
 	}
+
 	return func(next http.Handler) http.Handler {
 		return next
 	}

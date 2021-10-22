@@ -2,14 +2,17 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 
 	"contrib.go.opencensus.io/exporter/jaeger"
 	"github.com/go-chi/chi"
 	"go.opencensus.io/plugin/ochttp"
 	"go.opencensus.io/plugin/ochttp/propagation/b3"
 	"go.opencensus.io/trace"
+	"go.opencensus.io/trace/propagation"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
@@ -40,7 +43,7 @@ func (r *oauthProxy) proxyTracingMiddleware(next http.Handler) http.Handler {
 	const svc = "gatekeeper"
 
 	switch r.config.TracingExporter {
-	case "jaeger":
+	case jaegerExporter:
 		// set up span exporter
 		je, err := jaeger.NewExporter(jaeger.Options{
 			AgentEndpoint: os.ExpandEnv(r.config.TracingAgentEndpoint),
@@ -53,7 +56,7 @@ func (r *oauthProxy) proxyTracingMiddleware(next http.Handler) http.Handler {
 		}
 		trace.RegisterExporter(je)
 		r.log.Info("jaeger trace span exporting enabled")
-	case "datadog":
+	case datadogExporter:
 		exporterError := func(err error) {
 			r.log.Warn("could not export trace to datadog agent", zap.Error(err))
 		}
@@ -87,11 +90,18 @@ func (r *oauthProxy) proxyTracingMiddleware(next http.Handler) http.Handler {
 	trace.ApplyConfig(trace.Config{DefaultSampler: trace.AlwaysSample()})
 
 	// insert instrumentation middleware
+	var propagator propagation.HTTPFormat
+	if r.config.TracingExporter == datadogExporter {
+		propagator = &httpFormat{HTTPFormat: &b3.HTTPFormat{}}
+	} else {
+		propagator = &b3.HTTPFormat{}
+	}
+
 	instrument1 := func(next http.Handler) http.Handler {
 		return &ochttp.Handler{
 			Handler:          next,
-			Propagation:      &b3.HTTPFormat{},
-			IsPublicEndpoint: true,
+			Propagation:      propagator,
+			IsPublicEndpoint: false,
 		}
 	}
 	instrument2 := func(next http.Handler) http.Handler {
@@ -100,7 +110,7 @@ func (r *oauthProxy) proxyTracingMiddleware(next http.Handler) http.Handler {
 			ochttp.WithRouteTag(next, route.RoutePath).ServeHTTP(w, r)
 		})
 	}
-	return instrument1(instrument2(next))
+	return instrument2(instrument1(next))
 }
 
 type logger struct {
@@ -115,6 +125,7 @@ func (l logger) With(fields ...zap.Field) Logger {
 	return l
 }
 
+// traceSpan creates a child span from the context.
 func (r *oauthProxy) traceSpan(ctx context.Context, title string) (context.Context, *trace.Span, Logger) {
 	if !r.config.EnableTracing {
 		return ctx, nil, logger{Stdlog: r.log}
@@ -123,6 +134,8 @@ func (r *oauthProxy) traceSpan(ctx context.Context, title string) (context.Conte
 	return newCtx, span, logger{Stdlog: spanlog.New(r.log, span)}
 }
 
+// traceSpanRequest extracts the span from the current context and attaches a new logger to that span, if any.
+// The returned span may be nil, but a logger is always returned.
 func (r *oauthProxy) traceSpanRequest(req *http.Request) (*trace.Span, Logger) {
 	if !r.config.EnableTracing {
 		return nil, logger{Stdlog: r.log}
@@ -173,8 +186,50 @@ func traceError(span *trace.Span, err error, code int) error {
 
 func propagateSpan(span *trace.Span, req *http.Request) {
 	// B3 span propagation (e.g. Opentracing)
-	// NOTE: datadog is supposed support opentracing headers
+	// NOTE: datadog is supposed to support opentracing headers
 	propagation := &b3.HTTPFormat{}
 	propagation.SpanContextToRequest(span.SpanContext(), req)
 
+}
+
+type httpFormat struct {
+	*b3.HTTPFormat
+}
+
+const (
+	datadogTraceIDHeader  = "X-Datadog-Trace-Id"
+	datadogSpanIDHeader   = "X-Datadog-Parent-Id"
+	datadogSamplingHeader = "X-Datadog-Sampling-Priority"
+)
+
+// SpanContextFromRequest extracts a B3 or datadog span context from incoming requests.
+func (h *httpFormat) SpanContextFromRequest(req *http.Request) (trace.SpanContext, bool) {
+	span, ok := h.HTTPFormat.SpanContextFromRequest(req)
+	if ok {
+		// if we already have B3 headers, pick those
+		return span, ok
+	}
+
+	// pick datadog tracing headers and convert them to B3 headers
+	tid := req.Header.Get(datadogTraceIDHeader)
+	sid := req.Header.Get(datadogSpanIDHeader)
+	sampling := req.Header.Get(datadogSamplingHeader)
+	var s string
+	switch sampling {
+	case "1", "true":
+		s = "1"
+	default:
+		s = "0"
+	}
+
+	btid, _ := strconv.ParseUint(tid, 10, 64)
+	bsid, _ := strconv.ParseUint(sid, 10, 64)
+
+	if btid != 0 && bsid != 0 {
+		req.Header.Set(b3.TraceIDHeader, fmt.Sprintf("%016x", btid))
+		req.Header.Set(b3.SpanIDHeader, fmt.Sprintf("%016x", bsid))
+		req.Header.Set(b3.SampledHeader, s)
+	}
+
+	return h.HTTPFormat.SpanContextFromRequest(req)
 }

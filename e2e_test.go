@@ -265,10 +265,10 @@ func runTestConnect(t *testing.T, config *Config, listener, route string) (strin
 		URL:    u,
 		Header: make(http.Header),
 	}
-	// add request_uri to specify last stop redirection (inner workings since PR #440)
+	// add request_uri cookie to specify last stop redirection (inner workings since PR #440)
 	encoded := base64.StdEncoding.EncodeToString([]byte("http://" + listener + route))
 	ck := &http.Cookie{
-		Name:  "request_uri",
+		Name:  requestURICookie,
 		Value: encoded,
 		Path:  "/",
 		// real life cookie gets Secure, SameSite
@@ -337,4 +337,69 @@ func copyCookies(req *http.Request, cookies []*http.Cookie) {
 			req.AddCookie(ckMap[ck.Name])
 		}
 	}
+}
+
+func runTestConnectNoCookie(t *testing.T, config *Config, listener, route string) (string, []*http.Cookie, error) {
+	client := http.Client{
+		Transport: controlledRedirect{
+			CollectedCookies: make(map[string]*http.Cookie, 10),
+		},
+		CheckRedirect: onRedirect,
+	}
+	u, _ := url.Parse("http://" + config.Listen + "/oauth/authorize")
+
+	// query params
+	v := u.Query()
+	v.Set("state", "my_client_nonce") // NOTE: this state provided by the client is not currently carried on to the end (lost)
+	// add request_uri query param to specify last stop redirection (inner workings since PR #440)
+	v.Set(requestURIParam, "http://"+listener+route)
+	u.RawQuery = v.Encode()
+
+	req := &http.Request{
+		Method: "GET",
+		URL:    u,
+		Header: make(http.Header),
+	}
+
+	// attempts to login
+	resp, err := client.Do(req)
+	if !assert.NoError(t, err) {
+		return "", nil, err
+	}
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+
+	// check that we get the final redirection to app correctly
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	buf, erb := ioutil.ReadAll(resp.Body)
+	assert.NoError(t, erb)
+	assert.JSONEq(t, `{"message": "ok"}`, string(buf))
+
+	// returns all collected cookies during the handshake
+	collector, ok := client.Transport.(controlledRedirect)
+	require.True(t, ok)
+
+	collected := make([]*http.Cookie, 0, 10)
+	for _, ck := range collector.CollectedCookies {
+		collected = append(collected, ck)
+	}
+
+	// assert kc-access cookie
+	var (
+		found       bool
+		accessToken string
+	)
+	for _, ck := range collected {
+		if ck.Name == config.CookieAccessName {
+			accessToken = ck.Value
+			found = true
+			break
+		}
+	}
+	assert.True(t, found)
+	if t.Failed() {
+		return "", nil, errors.New("failed to connect")
+	}
+	return accessToken, collected, nil
 }

@@ -99,32 +99,43 @@ func TestUpstreams(t *testing.T) {
 	config := testBuildUpstreamsConfig()
 	require.NoError(t, config.isValid())
 
-	// launch fake oauth OIDC server
-	err := runTestAuth(t, e2eUpstreamsOauthListener, "hod-test")
-	require.NoError(t, err)
+	t.Run("should launch fake oauth OIDC server", func(t *testing.T) {
+		err := runTestAuth(t, e2eUpstreamsOauthListener, "hod-test")
+		require.NoError(t, err)
+	})
 
-	// launch fake upstream resource serverS
-	err = runTestUpstream(t, e2eUpstreamsUpstreamListener1, e2eUpstreamsUpstreamURL1, "mark1")
-	require.NoError(t, err)
+	t.Run("should launch fake upstream resource server #1", func(t *testing.T) {
+		err := runTestUpstream(t, e2eUpstreamsUpstreamListener1, e2eUpstreamsUpstreamURL1, "mark1")
+		require.NoError(t, err)
+	})
 
-	err = runTestUpstream(t, e2eUpstreamsUpstreamListener2, e2eUpstreamsUpstreamURL2+"/another-fake", "mark2")
-	require.NoError(t, err)
+	t.Run("should launch fake upstream resource server #2", func(t *testing.T) {
+		err := runTestUpstream(t, e2eUpstreamsUpstreamListener2, e2eUpstreamsUpstreamURL2+"/another-fake", "mark2")
+		require.NoError(t, err)
+	})
 
-	err = runTestUpstream(t, e2eUpstreamsUpstreamListener3, e2eUpstreamsUpstreamURL3, "mark3")
-	require.NoError(t, err)
+	t.Run("should launch fake upstream resource server #3", func(t *testing.T) {
+		err := runTestUpstream(t, e2eUpstreamsUpstreamListener3, e2eUpstreamsUpstreamURL3, "mark3")
+		require.NoError(t, err)
+	})
 
-	// launch fake app server where to land after authentication
-	err = runTestApp(t, e2eUpstreamsAppListener, e2eUpstreamsAppURL)
-	require.NoError(t, err)
+	t.Run("should launch fake app server where to land after authentication", func(t *testing.T) {
+		err := runTestApp(t, e2eUpstreamsAppListener, e2eUpstreamsAppURL)
+		require.NoError(t, err)
+	})
 
-	// launch keycloak-gatekeeper proxy
-	err = runTestGatekeeper(t, config)
-	require.NoError(t, err)
+	t.Run("should launch keycloak-gatekeeper proxy", func(t *testing.T) {
+		err := runTestGatekeeper(t, config)
+		require.NoError(t, err)
+	})
 
-	// establish an authenticated session
-	accessToken, cookies, err := runTestConnect(t, config, e2eUpstreamsAppListener, e2eUpstreamsAppURL)
-	require.NoErrorf(t, err, "could not login: %v", err)
-	require.NotEmpty(t, accessToken)
+	var cookies []*http.Cookie
+	t.Run("establish an authenticated session, with redirection from cookie", func(t *testing.T) {
+		accessToken, respCookies, err := runTestConnect(t, config, e2eUpstreamsAppListener, e2eUpstreamsAppURL)
+		require.NoErrorf(t, err, "could not login: %v", err)
+		require.NotEmpty(t, accessToken)
+		cookies = respCookies
+	})
 
 	// scenario 1: routing to different upstreams
 	client := http.Client{}
@@ -133,75 +144,88 @@ func TestUpstreams(t *testing.T) {
 	h.Add("Accept", "application/json")
 
 	// test upstream 1
-	u, _ := url.Parse("http://" + e2eUpstreamsProxyListener + "/fake")
-	req := &http.Request{
-		Method: "GET",
-		URL:    u,
-		Header: h,
-	}
-	copyCookies(req, cookies)
+	t.Run("should hit upstream #1", func(t *testing.T) {
+		u, _ := url.Parse("http://" + e2eUpstreamsProxyListener + "/fake")
+		req := &http.Request{
+			Method: "GET",
+			URL:    u,
+			Header: h,
+		}
+		copyCookies(req, cookies)
 
-	resp, err := client.Do(req)
-	require.NoError(t, err)
-	defer func() {
-		_ = resp.Body.Close()
-	}()
+		resp, err := client.Do(req)
+		require.NoError(t, err)
+		defer func() {
+			_ = resp.Body.Close()
+		}()
 
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	buf, err := ioutil.ReadAll(resp.Body)
-	require.NoError(t, err)
-	assert.Contains(t, string(buf), "mark1")
-	t.Logf(string(buf))
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		buf, err := ioutil.ReadAll(resp.Body)
+		require.NoError(t, err)
+		assert.Contains(t, string(buf), "mark1")
+		t.Logf(string(buf))
+	})
 
 	// test upstream 2
-	u, _ = url.Parse("http://" + e2eUpstreamsProxyListener + "/another-fake")
-	req = &http.Request{
-		Method: "GET",
-		URL:    u,
-		Header: h,
-	}
-	copyCookies(req, cookies)
+	t.Run("should hit upstream #2", func(t *testing.T) {
+		u, _ := url.Parse("http://" + e2eUpstreamsProxyListener + "/another-fake")
+		req := &http.Request{
+			Method: "GET",
+			URL:    u,
+			Header: h,
+		}
+		copyCookies(req, cookies)
 
-	resp, err = client.Do(req)
-	require.NoError(t, err)
+		resp, err := client.Do(req)
+		require.NoError(t, err)
 
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	buf, err = ioutil.ReadAll(resp.Body)
-	require.NoError(t, err)
-	assert.Contains(t, string(buf), "mark2")
-	t.Logf(string(buf))
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		buf, err := ioutil.ReadAll(resp.Body)
+		require.NoError(t, err)
+		assert.Contains(t, string(buf), "mark2")
+		t.Logf(string(buf))
+	})
 
 	// test upstream 3
-	u, _ = url.Parse("http://" + e2eUpstreamsProxyListener + e2eUpstreamsUpstreamURL3)
-	req = &http.Request{
-		Method: "GET",
-		URL:    u,
-		Header: h,
-	}
-	copyCookies(req, cookies)
+	t.Run("should hit upstream #3", func(t *testing.T) {
+		u, _ := url.Parse("http://" + e2eUpstreamsProxyListener + e2eUpstreamsUpstreamURL3)
+		req := &http.Request{
+			Method: "GET",
+			URL:    u,
+			Header: h,
+		}
+		copyCookies(req, cookies)
 
-	resp, err = client.Do(req)
-	require.NoError(t, err)
+		resp, err := client.Do(req)
+		require.NoError(t, err)
 
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	buf, err = ioutil.ReadAll(resp.Body)
-	require.NoError(t, err)
-	assert.Contains(t, string(buf), "mark3")
-	t.Logf(string(buf))
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		buf, err := ioutil.ReadAll(resp.Body)
+		require.NoError(t, err)
+		assert.Contains(t, string(buf), "mark3")
+		t.Logf(string(buf))
+	})
 
-	// this should route to {listener3}/api2 and returns 404
-	u, _ = url.Parse("http://" + e2eUpstreamsProxyListener + e2eUpstreamsUpstreamURL2)
-	req = &http.Request{
-		Method: "GET",
-		URL:    u,
-		Header: h,
-	}
-	copyCookies(req, cookies)
+	t.Run("should route to {listener3}/api2 and returns 404", func(t *testing.T) {
+		u, _ := url.Parse("http://" + e2eUpstreamsProxyListener + e2eUpstreamsUpstreamURL2)
+		req := &http.Request{
+			Method: "GET",
+			URL:    u,
+			Header: h,
+		}
+		copyCookies(req, cookies)
 
-	resp, err = client.Do(req)
-	require.NoError(t, err)
+		resp, err := client.Do(req)
+		require.NoError(t, err)
 
-	assert.Equal(t, http.StatusNotFound, resp.StatusCode)
+		assert.Equal(t, http.StatusNotFound, resp.StatusCode)
+	})
 
 	// scenario 2: more basepath & path stripping
+
+	t.Run("connect with query param instead of cookie", func(t *testing.T) {
+		accessToken, _, err := runTestConnectNoCookie(t, config, e2eUpstreamsAppListener, e2eUpstreamsAppURL)
+		require.NoErrorf(t, err, "could not login: %v", err)
+		require.NotEmpty(t, accessToken)
+	})
 }

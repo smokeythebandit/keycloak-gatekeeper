@@ -235,14 +235,17 @@ func (r *oauthProxy) oauthCallbackHandler(w http.ResponseWriter, req *http.Reque
 
 	// step: decode the request variable when a state is passed
 	redirectURI := "/"
+	logger.Debug("app request URL, with query [1]", zap.Stringer("URL", req.URL))
 	if req.URL.Query().Get("state") != "" {
 		// 1. redirect URI may be passed by query param
+		logger.Debug("app request URL, with query", zap.String("requestURI", req.URL.RequestURI()))
 		if encodedRequestURI := req.URL.Query().Get(requestURIParam); encodedRequestURI != "" {
 			decoded, err := url.QueryUnescape(encodedRequestURI)
 			if err != nil {
 				logger.Warn("app did send a corrupted redirect_uri param: invalid url escaping", zap.Error(err))
 			}
 			redirectURI = decoded
+			logger.Debug("app did send a request to be redirected", zap.String("query_param", redirectURI))
 		} else {
 			// 2. redirect URI may be passed by cookie (fallback)
 			// if the authorization has set a state, we now check if the calling client
@@ -264,6 +267,7 @@ func (r *oauthProxy) oauthCallbackHandler(w http.ResponseWriter, req *http.Reque
 						zap.String("encoded_value", unescapedValue))
 				}
 				redirectURI = string(decoded)
+				logger.Debug("app did send a request to be redirected", zap.String("cookie_param", redirectURI))
 			}
 		}
 	}

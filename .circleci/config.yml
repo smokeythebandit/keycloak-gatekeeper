@@ -16,7 +16,7 @@ jobs:
           name: Run linter
           environment:
           command: |
-            golangci-lint run --deadline 2m --new-from-rev oneconcern-release
+            golangci-lint run --timeout 10m --new-from-rev oneconcern-release
 
   test:
     working_directory: /go/src/github.com/oneconcern/keycloak-gatekeeper

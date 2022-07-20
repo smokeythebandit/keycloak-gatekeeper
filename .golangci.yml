@@ -13,34 +13,31 @@ linters-settings:
   goconst:
     min-len: 2
     min-occurrences: 2
+  funlen:
+    lines: 100
+    statements: 50
+  gocognit:
+    min-complexity: 80 # This is super high value. We should gradually lower it to 30-40.
 
 linters:
-  enable-all: true
+  enable:
+    - gofmt
+    - goimports
+    - bodyclose
+    - dupl
+    - forbidigo
+    - gocognit
+    - gocritic
+    - goimports
+    - gosec
+    - nakedret
+    - nolintlint
+    - revive
+    - stylecheck
+    - unconvert
+    #- unparam
   disable:
     - maligned
-    - unparam
     - lll
     - gochecknoinits
     - gochecknoglobals
-    - wsl
-    - whitespace
-    - gocognit
-    - funlen
-    - godox
-    - gomnd
-    - nlreturn
-    - testpackage
-    - goerr113
-    - nestif
-    - exhaustive
-    - gofumpt
-    - godot
-    - gci
-    - exhaustivestruct
-    - wrapcheck
-    - errorlint
-    - thelper
-    - gocyclo
-    - tagliatelle
-    - gomoddirectives
-    - paralleltest

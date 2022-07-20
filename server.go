@@ -191,11 +191,12 @@ func (r *oauthProxy) Run() error {
 
 	// step: create the main http(s) server
 	server := &http.Server{
-		Addr:         r.config.Listen,
-		Handler:      r.router,
-		ReadTimeout:  r.config.ServerReadTimeout,
-		WriteTimeout: r.config.ServerWriteTimeout,
-		IdleTimeout:  r.config.ServerIdleTimeout,
+		Addr:              r.config.Listen,
+		Handler:           r.router,
+		ReadTimeout:       r.config.ServerReadTimeout,
+		ReadHeaderTimeout: r.config.ServerReadTimeout,
+		WriteTimeout:      r.config.ServerWriteTimeout,
+		IdleTimeout:       r.config.ServerIdleTimeout,
 	}
 	r.server = server
 	r.listener = listener
@@ -220,11 +221,12 @@ func (r *oauthProxy) Run() error {
 			return err
 		}
 		httpsvc := &http.Server{
-			Addr:         r.config.ListenHTTP,
-			Handler:      r.router,
-			ReadTimeout:  r.config.ServerReadTimeout,
-			WriteTimeout: r.config.ServerWriteTimeout,
-			IdleTimeout:  r.config.ServerIdleTimeout,
+			Addr:              r.config.ListenHTTP,
+			Handler:           r.router,
+			ReadTimeout:       r.config.ServerReadTimeout,
+			ReadHeaderTimeout: r.config.ServerReadTimeout,
+			WriteTimeout:      r.config.ServerWriteTimeout,
+			IdleTimeout:       r.config.ServerIdleTimeout,
 		}
 		go func() {
 			if err := httpsvc.Serve(httpListener); err != nil {
@@ -280,11 +282,12 @@ func (r *oauthProxy) Run() error {
 			}
 		}
 		adminsvc := &http.Server{
-			Addr:         r.config.ListenAdmin,
-			Handler:      r.adminRouter,
-			ReadTimeout:  r.config.ServerReadTimeout,
-			WriteTimeout: r.config.ServerWriteTimeout,
-			IdleTimeout:  r.config.ServerIdleTimeout,
+			Addr:              r.config.ListenAdmin,
+			Handler:           r.adminRouter,
+			ReadTimeout:       r.config.ServerReadTimeout,
+			ReadHeaderTimeout: r.config.ServerReadTimeout,
+			WriteTimeout:      r.config.ServerWriteTimeout,
+			IdleTimeout:       r.config.ServerIdleTimeout,
 		}
 
 		go func() {

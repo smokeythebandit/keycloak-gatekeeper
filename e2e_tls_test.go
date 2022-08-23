@@ -22,7 +22,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"path"
@@ -175,7 +174,7 @@ func runTestTLSConnect(t *testing.T, config *Config, listener, route string) (st
 	u.RawQuery = v.Encode()
 
 	req := &http.Request{
-		Method: "GET",
+		Method: http.MethodGet,
 		URL:    u,
 		Header: make(http.Header),
 	}
@@ -200,7 +199,7 @@ func runTestTLSConnect(t *testing.T, config *Config, listener, route string) (st
 
 	// check that we get the final redirection to app correctly
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	buf, erb := ioutil.ReadAll(resp.Body)
+	buf, erb := io.ReadAll(resp.Body)
 	assert.NoError(t, erb)
 	assert.JSONEq(t, `{"message": "ok"}`, string(buf))
 
@@ -336,7 +335,7 @@ func testBuildTLSUpstreamConfig() *Config {
 	config.Resources = []*Resource{
 		{
 			URL:           "/fake",
-			Methods:       []string{"GET", "POST", "DELETE"},
+			Methods:       []string{http.MethodGet, http.MethodPost, http.MethodDelete},
 			WhiteListed:   false,
 			EnableCSRF:    false,
 			Upstream:      "https://" + e2eTLSUpstreamUpstreamListener + e2eTLSUpstreamUpstreamURL,
@@ -350,8 +349,6 @@ func testBuildTLSUpstreamConfig() *Config {
 }
 
 func TestTLSUpstream(t *testing.T) {
-	// log.SetOutput(ioutil.Discard)
-
 	config := testBuildTLSUpstreamConfig()
 	require.NoError(t, config.isValid())
 
@@ -406,7 +403,7 @@ func TestTLSUpstream(t *testing.T) {
 	// test TLS upstream
 	u, _ := url.Parse("https://" + e2eTLSUpstreamProxyListener + "/fake")
 	req := &http.Request{
-		Method: "GET",
+		Method: http.MethodGet,
 		URL:    u,
 		Header: h,
 	}
@@ -427,7 +424,7 @@ func TestTLSUpstream(t *testing.T) {
 	// also interactive test may produce HTTP/2 traces:
 	// GODEBUG=http2debug=2 ; go test -v -run TLSUpstream
 	assert.Equal(t, 2, resp.ProtoMajor) // assert response is HTTP/2
-	buf, err := ioutil.ReadAll(resp.Body)
+	buf, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	assert.Contains(t, string(buf), "mark1")
 
@@ -444,7 +441,7 @@ func TestTLSUpstream(t *testing.T) {
 		_ = resp.Body.Close()
 	}()
 	require.Equal(t, http.StatusOK, resp.StatusCode)
-	buf, err = ioutil.ReadAll(resp.Body)
+	buf, err = io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	claims := make(map[string]interface{})
 	err = json.Unmarshal(buf, &claims)
@@ -477,7 +474,7 @@ func TestTLSUpstream(t *testing.T) {
 		_ = resp.Body.Close()
 	}()
 	require.Equal(t, http.StatusOK, resp.StatusCode)
-	buf, err = ioutil.ReadAll(resp.Body)
+	buf, err = io.ReadAll(resp.Body)
 	require.NoError(t, err)
 
 	claims = make(map[string]interface{})
@@ -553,14 +550,14 @@ func TestTLSUpstream(t *testing.T) {
 		_ = resp.Body.Close()
 	}()
 	require.Equal(t, http.StatusOK, resp.StatusCode)
-	buf, err = ioutil.ReadAll(resp.Body)
+	buf, err = io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	require.JSONEq(t, `{"status":"OK"}`, string(buf))
 
 	// check out zpages
 	u, _ = url.Parse("https://" + e2eTLSAdminEndpointListener + "/oauth/trace/rpcz")
 	req = &http.Request{
-		Method: "GET",
+		Method: http.MethodGet,
 		URL:    u,
 	}
 	resp, err = client.Do(req)
@@ -569,7 +566,7 @@ func TestTLSUpstream(t *testing.T) {
 		_ = resp.Body.Close()
 	}()
 	require.Equal(t, http.StatusOK, resp.StatusCode)
-	buf, err = ioutil.ReadAll(resp.Body)
+	buf, err = io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	// t.Logf("rpcz: %s", string(buf))
 	assert.Contains(t, string(buf), `<!DOCTYPE html>`)
@@ -582,7 +579,7 @@ func TestTLSUpstream(t *testing.T) {
 		_ = resp.Body.Close()
 	}()
 	require.Equal(t, http.StatusOK, resp.StatusCode)
-	buf, err = ioutil.ReadAll(resp.Body)
+	buf, err = io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	// t.Logf("tracez: %s", string(buf))
 	assert.Contains(t, string(buf), `<!DOCTYPE html>`)
@@ -595,7 +592,7 @@ func TestTLSUpstream(t *testing.T) {
 		_ = resp.Body.Close()
 	}()
 	require.Equal(t, http.StatusOK, resp.StatusCode)
-	buf, err = ioutil.ReadAll(resp.Body)
+	buf, err = io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	// t.Logf("tracez: %s", string(buf))
 	assert.Contains(t, string(buf), `<!DOCTYPE html>`)

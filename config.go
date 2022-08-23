@@ -199,6 +199,7 @@ func checkTLSVersion(config *tlsAdvancedConfig, parsed *tlsSettings) error {
 	return nil
 }
 
+//nolint:nosnakecase
 func checkTLSCipher(config *tlsAdvancedConfig, parsed *tlsSettings) error {
 	if !config.tlsUseModernSettings && len(config.tlsCipherSuites) == 0 {
 		return nil
@@ -249,6 +250,7 @@ func checkTLSCipher(config *tlsAdvancedConfig, parsed *tlsSettings) error {
 	return nil
 }
 
+//nolint:nosnakecase
 func parseTLSCipher(cipher string) (uint16, error) {
 	switch cipher {
 	case "TLS_FALLBACK_SCSV":

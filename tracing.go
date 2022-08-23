@@ -135,6 +135,7 @@ func (r *oauthProxy) traceSpan(ctx context.Context, title string) (context.Conte
 }
 
 // traceSpanRequest extracts the span from the current context and attaches a new logger to that span, if any.
+//
 // The returned span may be nil, but a logger is always returned.
 func (r *oauthProxy) traceSpanRequest(req *http.Request) (*trace.Span, Logger) {
 	if !r.config.EnableTracing {

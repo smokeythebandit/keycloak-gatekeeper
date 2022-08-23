@@ -58,10 +58,14 @@ func extractIdentity(token jose.JWT) (*userContext, error) {
 	// @step: extract the realm roles
 	var roleList []string
 	if realmRoles, found := claims[claimRealmAccess].(map[string]interface{}); found {
-		if roles, found := realmRoles[claimResourceRoles]; found {
-			for _, r := range roles.([]interface{}) {
-				roleList = append(roleList, fmt.Sprintf("%s", r))
+		if rawRoles, found := realmRoles[claimResourceRoles]; found {
+			roles, ok := rawRoles.([]interface{})
+			if ok {
+				for _, r := range roles {
+					roleList = append(roleList, fmt.Sprintf("%s", r))
+				}
 			}
+			// invalid claim is ignored
 		}
 	}
 

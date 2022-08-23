@@ -19,7 +19,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"path"
@@ -163,7 +162,7 @@ func getUpstreamTest(t *testing.T, config *Config, cookies []*http.Cookie, expec
 	h := make(http.Header, 10)
 	h.Set("Content-Type", "application/json")
 	req := &http.Request{
-		Method: "GET",
+		Method: http.MethodGet,
 		URL:    u,
 		Header: h,
 	}
@@ -173,7 +172,7 @@ func getUpstreamTest(t *testing.T, config *Config, cookies []*http.Cookie, expec
 
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	buf, erb := ioutil.ReadAll(resp.Body)
+	buf, erb := io.ReadAll(resp.Body)
 	assert.NoError(t, erb)
 	assert.JSONEq(t, `{"message":"test"}`, string(buf)) // check this is our test resource being called
 
@@ -224,7 +223,7 @@ func getTokenTest(t *testing.T, config *Config, cookies []*http.Cookie, expectCS
 	h := make(http.Header, 10)
 	h.Set("Content-Type", "application/json")
 	req := &http.Request{
-		Method: "GET",
+		Method: http.MethodGet,
 		URL:    u,
 		Header: h,
 	}
@@ -234,7 +233,7 @@ func getTokenTest(t *testing.T, config *Config, cookies []*http.Cookie, expectCS
 
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	buf, erb := ioutil.ReadAll(resp.Body)
+	buf, erb := io.ReadAll(resp.Body)
 	assert.NoError(t, erb)
 	assert.NotEmpty(t, buf)
 
@@ -274,7 +273,7 @@ func postUpstreamTest(t *testing.T, config *Config, cookies []*http.Cookie, csrf
 	h.Set("Content-Type", "application/json")
 	h.Add(config.CSRFHeader, csrfToken)
 	req := &http.Request{
-		Method: "POST",
+		Method: http.MethodPost,
 		URL:    u,
 		Header: h,
 	}
@@ -287,7 +286,7 @@ func postUpstreamTest(t *testing.T, config *Config, cookies []*http.Cookie, csrf
 	var csrfNewToken string
 	if !expectedFailure {
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
-		buf, erb := ioutil.ReadAll(resp.Body)
+		buf, erb := io.ReadAll(resp.Body)
 
 		// checking response to POST
 		assert.NoError(t, erb)
@@ -317,7 +316,7 @@ func postUpstreamWithAccessTokenTest(t *testing.T, config *Config, cookies []*ht
 	h.Set("Content-Type", "application/json")
 	h.Add("Authorization", "Bearer "+accessToken)
 	req := &http.Request{
-		Method: "POST",
+		Method: http.MethodPost,
 		URL:    u,
 		Header: h,
 	}
@@ -329,7 +328,7 @@ func postUpstreamWithAccessTokenTest(t *testing.T, config *Config, cookies []*ht
 
 	var csrfNewToken string
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	buf, erb := ioutil.ReadAll(resp.Body)
+	buf, erb := io.ReadAll(resp.Body)
 
 	// checking response to POST
 	assert.NoError(t, erb)
@@ -351,7 +350,7 @@ func postUpstream2Test(t *testing.T, config *Config, cookies []*http.Cookie) (st
 	h := make(http.Header, 10)
 	h.Set("Content-Type", "application/json")
 	req := &http.Request{
-		Method: "POST",
+		Method: http.MethodPost,
 		URL:    u,
 		Header: h,
 	}
@@ -363,7 +362,7 @@ func postUpstream2Test(t *testing.T, config *Config, cookies []*http.Cookie) (st
 
 	var csrfNewToken string
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	buf, erb := ioutil.ReadAll(resp.Body)
+	buf, erb := io.ReadAll(resp.Body)
 
 	// checking response to POST
 	assert.NoError(t, erb)
@@ -404,7 +403,7 @@ func TestCSRF(t *testing.T) {
 	config.Resources = []*Resource{
 		{
 			URL:         e2eCsrfUpstreamURL2,
-			Methods:     []string{"GET", "POST", "DELETE"},
+			Methods:     []string{http.MethodGet, http.MethodPost, http.MethodDelete},
 			WhiteListed: false,
 			EnableCSRF:  false,
 		},
@@ -416,7 +415,7 @@ func TestCSRF(t *testing.T) {
 
 	config.Resources = append(config.Resources, &Resource{
 		URL:         e2eCsrfUpstreamURL,
-		Methods:     []string{"GET", "POST", "DELETE"},
+		Methods:     []string{http.MethodGet, http.MethodPost, http.MethodDelete},
 		WhiteListed: false,
 		EnableCSRF:  true,
 	})

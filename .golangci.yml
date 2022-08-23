@@ -21,23 +21,56 @@ linters-settings:
 
 linters:
   enable:
-    - gofmt
-    - goimports
+    #- nolintlint
+    #- unparam
     - bodyclose
     - dupl
     - forbidigo
     - gocognit
     - gocritic
+    - gofmt
+    - goimports
     - goimports
     - gosec
     - nakedret
-    - nolintlint
     - revive
     - stylecheck
     - unconvert
-    #- unparam
   disable:
-    - maligned
-    - lll
-    - gochecknoinits
+    #- gocognit
+    - errorlint
+    - exhaustive
+    - exhaustivestruct
+    - exhaustruct
+    - funlen
+    - gci
     - gochecknoglobals
+    - gochecknoinits
+    - gocyclo
+    - godot
+    - godox
+    - goerr113
+    - gofumpt
+    - golint
+    - gomnd
+    - gomoddirectives
+    - ifshort
+    - interfacer
+    - ireturn
+    - lll
+    - maintidx
+    - maligned
+    - nestif
+    - nlreturn
+    - nolintlint
+    - nonamedreturns
+    - paralleltest
+    - scopelint
+    - tagliatelle
+    - testpackage
+    - thelper
+    - unparam
+    - varnamelen
+    - whitespace
+    - wrapcheck
+    - wsl

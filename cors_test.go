@@ -16,7 +16,7 @@ limitations under the License.
 package main
 
 import (
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -47,7 +47,7 @@ func testBuildCorsConfig() *Config {
 	config.Resources = []*Resource{
 		{
 			URL:         e2eCorsUpstreamURL,
-			Methods:     []string{"GET"},
+			Methods:     []string{http.MethodGet},
 			WhiteListed: true,
 		},
 	}
@@ -55,7 +55,7 @@ func testBuildCorsConfig() *Config {
 }
 
 func TestCorsWithUpstream(t *testing.T) {
-	log.SetOutput(ioutil.Discard)
+	log.SetOutput(io.Discard)
 
 	config := testBuildCorsConfig()
 
@@ -76,7 +76,7 @@ func TestCorsWithUpstream(t *testing.T) {
 	h.Add("Origin", "myorigin.com")
 
 	resp, err := client.Do(&http.Request{
-		Method: "GET",
+		Method: http.MethodGet,
 		URL:    u,
 		Header: h,
 	})
@@ -85,7 +85,7 @@ func TestCorsWithUpstream(t *testing.T) {
 		_ = resp.Body.Close()
 	}()
 
-	buf, erb := ioutil.ReadAll(resp.Body)
+	buf, erb := io.ReadAll(resp.Body)
 	assert.NoError(t, erb)
 	assert.Contains(t, string(buf), `"message": "test"`) // check this is our test resource
 	if assert.NotEmpty(t, resp.Header) && assert.Contains(t, resp.Header, "Access-Control-Allow-Origin") {

@@ -1,4 +1,5 @@
-//+build nostores
+//go:build nostores
+// +build nostores
 
 package main
 

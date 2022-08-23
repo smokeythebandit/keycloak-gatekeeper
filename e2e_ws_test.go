@@ -216,7 +216,7 @@ func testBuildWSTLSUpstreamConfig() *Config {
 	config.Resources = []*Resource{
 		{
 			URL:         "/echo",
-			Methods:     []string{"GET", "POST", "DELETE"},
+			Methods:     []string{http.MethodGet, http.MethodPost, http.MethodDelete},
 			WhiteListed: false,
 			EnableCSRF:  false,
 			Upstream:    "https://" + e2eWSTLSUpstreamUpstreamListener,
@@ -227,8 +227,6 @@ func testBuildWSTLSUpstreamConfig() *Config {
 }
 
 func TestWSTLSUpstream(t *testing.T) {
-	// log.SetOutput(ioutil.Discard)
-
 	config := testBuildWSTLSUpstreamConfig()
 	require.NoError(t, config.isValid())
 
@@ -263,7 +261,7 @@ func TestWSTLSUpstream(t *testing.T) {
 	t.Logf("connecting to %s", u.String())
 
 	req := &http.Request{
-		Method: "GET",
+		Method: http.MethodGet,
 		URL:    u,
 		Header: h,
 	}
@@ -275,7 +273,7 @@ func TestWSTLSUpstream(t *testing.T) {
 		RootCAs:    makeTestCACertPool(),
 		NextProtos: []string{"http/1.1"}, // h2: not supported by gorilla/websocket
 	}
-	// nolint: bodyclose
+	//nolint: bodyclose
 	c, _, err := wsDialer.Dial(u.String(), req.Header)
 	require.NoErrorf(t, err, "dial error: %v", err)
 	defer c.Close()

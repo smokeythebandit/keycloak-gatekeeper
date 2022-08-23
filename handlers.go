@@ -22,7 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 
 	"net/http"
 	"net/http/pprof"
@@ -332,9 +332,9 @@ func (r *oauthProxy) loginHandler(w http.ResponseWriter, req *http.Request) {
 func emptyHandler(w http.ResponseWriter, req *http.Request) {}
 
 // logoutHandler performs a logout
-//  - if it's just a access token, the cookie is deleted
-//  - if the user has a refresh token, the token is invalidated by the provider
-//  - optionally, the user can be redirected by to a url
+//   - if it's just a access token, the cookie is deleted
+//   - if the user has a refresh token, the token is invalidated by the provider
+//   - optionally, the user can be redirected by to a url
 func (r *oauthProxy) logoutHandler(w http.ResponseWriter, req *http.Request) {
 	ctx, span, logger := r.traceSpan(req.Context(), "logout handler")
 	if span != nil {
@@ -424,6 +424,7 @@ func (r *oauthProxy) commonLogout(ctx context.Context, w http.ResponseWriter, re
 	if revocationURL != "" {
 		client, err := r.client.OAuthClient()
 		if err != nil {
+			//nolint:contextcheck
 			r.errorResponse(w, req.WithContext(ctx), "unable to retrieve the openid client", http.StatusInternalServerError, err)
 			return
 		}
@@ -436,6 +437,7 @@ func (r *oauthProxy) commonLogout(ctx context.Context, w http.ResponseWriter, re
 		// step: construct the url for revocation
 		request, err := http.NewRequestWithContext(ctx, http.MethodPost, revocationURL, bytes.NewBufferString(fmt.Sprintf("refresh_token=%s", token)))
 		if err != nil {
+			//nolint:contextcheck
 			r.errorResponse(w, req.WithContext(ctx), "unable to construct the revocation request", http.StatusInternalServerError, err)
 			return
 		}
@@ -461,7 +463,7 @@ func (r *oauthProxy) commonLogout(ctx context.Context, w http.ResponseWriter, re
 		case http.StatusNoContent:
 			logger.Info("successfully logged out of the endpoint")
 		default:
-			content, _ := ioutil.ReadAll(response.Body)
+			content, _ := io.ReadAll(response.Body)
 			logger.Error("invalid response from revocation endpoint",
 				zap.Int("status", response.StatusCode),
 				zap.ByteString("response", content))

@@ -23,16 +23,17 @@ import (
 	"fmt"
 	"html/template"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"golang.org/x/crypto/acme/autocert"
+	"golang.org/x/sync/errgroup"
 
 	httplog "log"
 
@@ -63,6 +64,11 @@ type oauthProxy struct {
 	// preconfigured closures
 	cookieChunker func(string, string) int
 	cookieDropper func(string, string, string, time.Duration) *http.Cookie
+
+	// context that drives the forwarder's goroutine (used for testing)
+	forwardCtx       context.Context //nolint:containedctx
+	forwardCancel    func()
+	forwardWaitGroup *errgroup.Group
 }
 
 func init() {
@@ -128,9 +134,13 @@ func newProxy(config *Config) (*oauthProxy, error) {
 	return svc, nil
 }
 
+var onceDiscardLog, onceEnableLog sync.Once
+
 // createLogger is responsible for creating the service logger
 func createLogger(config *Config) (*zap.Logger, error) {
-	httplog.SetOutput(ioutil.Discard) // disable the http logger
+	onceDiscardLog.Do(func() {
+		httplog.SetOutput(io.Discard) // disable the http logger
+	})
 	if config.DisableAllLogging {
 		return zap.NewNop(), nil
 	}
@@ -146,7 +156,9 @@ func createLogger(config *Config) (*zap.Logger, error) {
 
 	// are we running verbose mode?
 	if config.Verbose {
-		httplog.SetOutput(os.Stderr)
+		onceEnableLog.Do(func() {
+			httplog.SetOutput(os.Stderr)
+		})
 		c.DisableCaller = false
 		c.Development = true
 		c.Level = zap.NewAtomicLevelAt(zap.DebugLevel)
@@ -526,12 +538,15 @@ func (r *oauthProxy) newOpenIDClient() (*oidc.Client, oidc.ProviderConfig, *http
 				if r.config.OpenIDProviderProxy != "" {
 					idpProxyURL, erp := url.Parse(r.config.OpenIDProviderProxy)
 					if erp != nil {
-						r.log.Warn("invalid proxy address for open IDP provider proxy", zap.Error(erp))
-						return nil, nil
+						r.log.Error("invalid proxy address for open IDP provider proxy", zap.Error(erp))
+						return nil, erp
 					}
+
 					return idpProxyURL, nil
 				}
 
+				// no proxy used
+				//nolint:nilnil
 				return nil, nil
 			},
 			TLSClientConfig: &tls.Config{
@@ -626,7 +641,7 @@ func (r *oauthProxy) buildProxyTLSConfig() (*tls.Config, error) {
 func makeCertPool(who string, certs ...string) (*x509.CertPool, error) {
 	caCertPool := x509.NewCertPool()
 	for _, cert := range certs {
-		caPEMCert, err := ioutil.ReadFile(cert)
+		caPEMCert, err := os.ReadFile(cert)
 		if err != nil {
 			return nil, fmt.Errorf("cannot read cert file for %s: %q: %v", who, cert, err)
 		}

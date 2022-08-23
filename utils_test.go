@@ -19,7 +19,6 @@ import (
 	"bytes"
 	"crypto/tls"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"reflect"
@@ -475,7 +474,7 @@ func TestFileExists(t *testing.T) {
 	if fileExists("no_such_file_exsit_32323232") {
 		t.Error("we should have received false")
 	}
-	tmpfile, err := ioutil.TempFile("/tmp", fmt.Sprintf("test_file_%d", os.Getpid()))
+	tmpfile, err := os.CreateTemp("/tmp", fmt.Sprintf("test_file_%d", os.Getpid()))
 	if err != nil {
 		t.Fatalf("failed to create the temporary file, %s", err)
 	}
@@ -624,13 +623,13 @@ redirection_url: http://127.0.0.1:3000
 }
 
 func writeFakeConfigFile(t *testing.T, content string) *os.File {
-	f, err := ioutil.TempFile("", "node_label_file")
+	f, err := os.CreateTemp("", "node_label_file")
 	if err != nil {
 		t.Fatalf("unexpected error creating node_label_file: %v", err)
 	}
 	f.Close()
 
-	if err := ioutil.WriteFile(f.Name(), []byte(content), 0600); err != nil {
+	if err := os.WriteFile(f.Name(), []byte(content), 0600); err != nil {
 		t.Fatalf("unexpected error writing node label file: %v", err)
 	}
 

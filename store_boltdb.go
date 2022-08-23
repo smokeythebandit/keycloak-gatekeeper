@@ -27,9 +27,7 @@ import (
 	"github.com/boltdb/bolt"
 )
 
-const (
-	dbName = "keycloak"
-)
+var dbName = []byte("keycloak")
 
 var (
 	// ErrNoBoltdbBucket means the bucket does not exist
@@ -53,7 +51,7 @@ func newBoltDBStore(location *url.URL) (storage, error) {
 
 	// step: create the bucket
 	err = db.Update(func(tx *bolt.Tx) error {
-		_, e := tx.CreateBucketIfNotExists([]byte(dbName))
+		_, e := tx.CreateBucketIfNotExists(dbName)
 		return e
 	})
 
@@ -65,7 +63,7 @@ func newBoltDBStore(location *url.URL) (storage, error) {
 // Set adds a token to the store
 func (r *boltdbStore) Set(key, value string) error {
 	return r.client.Update(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket([]byte(dbName))
+		bucket := tx.Bucket(dbName)
 		if bucket == nil {
 			return ErrNoBoltdbBucket
 		}
@@ -77,7 +75,7 @@ func (r *boltdbStore) Set(key, value string) error {
 func (r *boltdbStore) Get(key string) (string, error) {
 	var value string
 	err := r.client.View(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket([]byte(dbName))
+		bucket := tx.Bucket(dbName)
 		if bucket == nil {
 			return ErrNoBoltdbBucket
 		}
@@ -91,7 +89,7 @@ func (r *boltdbStore) Get(key string) (string, error) {
 // Delete removes the key from the bucket
 func (r *boltdbStore) Delete(key string) error {
 	return r.client.Update(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket([]byte(dbName))
+		bucket := tx.Bucket(dbName)
 		if bucket == nil {
 			return ErrNoBoltdbBucket
 		}

@@ -20,7 +20,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -158,7 +158,7 @@ func getUserinfo(client *oauth2.Client, endpoint string, token string) (jose.Cla
 	if resp.StatusCode != http.StatusOK {
 		return nil, errors.New("token not validate by userinfo endpoint")
 	}
-	content, err := ioutil.ReadAll(resp.Body)
+	content, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}

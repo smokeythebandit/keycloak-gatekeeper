@@ -17,7 +17,7 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -30,7 +30,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/rs/cors"
 	"github.com/stretchr/testify/assert"
-	"go.uber.org/zap"
 	resty "gopkg.in/resty.v1"
 )
 
@@ -83,11 +82,15 @@ const (
 	testKey      = "ZSeCYDUxIlhDrmPpa1Ldc7il384esSF2"
 )
 
-func newFakeProxy(c *Config) *fakeProxy {
-	log.SetOutput(ioutil.Discard)
-	if c == nil {
+func newFakeProxy(cfg *Config) *fakeProxy {
+	log.SetOutput(io.Discard)
+	c := new(Config)
+	if cfg == nil {
 		c = newFakeKeycloakConfig()
+	} else {
+		*c = *cfg
 	}
+
 	auth := newFakeAuthServer()
 	c.DiscoveryURL = auth.getLocation()
 	c.RevocationEndpoint = auth.getRevocationURL()
@@ -95,7 +98,7 @@ func newFakeProxy(c *Config) *fakeProxy {
 	if err != nil {
 		panic("failed to create fake proxy service, error: " + err.Error())
 	}
-	proxy.log = zap.NewNop()
+	// proxy.log = zap.NewNop()
 	proxy.upstream = &fakeUpstreamService{}
 	if err = proxy.Run(); err != nil {
 		panic("failed to create the proxy service, error: " + err.Error())

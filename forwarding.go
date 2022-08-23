@@ -19,12 +19,14 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	httplog "log"
 	"net"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/coreos/go-oidc/jose"
@@ -32,6 +34,7 @@ import (
 	"github.com/elazarl/goproxy"
 	"github.com/oneconcern/keycloak-gatekeeper/version"
 	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
 )
 
 func (r *Config) isForwardingValid() error {
@@ -66,7 +69,11 @@ func (r *oauthProxy) createForwardingProxy() error {
 	if err := r.createProxy(); err != nil {
 		return err
 	}
-	// nolint: bodyclose
+
+	r.forwardCtx, r.forwardCancel = context.WithCancel(context.Background())
+	r.forwardWaitGroup, _ = errgroup.WithContext(r.forwardCtx)
+
+	//nolint: bodyclose
 	forwardingHandler := r.forwardProxyHandler()
 
 	// set the http handler
@@ -131,36 +138,51 @@ func (r *oauthProxy) createForwardingProxy() error {
 	return nil
 }
 
+// the loop state
+type forwardingState struct {
+	// the access token
+	token jose.JWT
+	// the refresh token if any
+	refresh string
+	// the identity of the user
+	identity *oidc.Identity
+	// the expiry time of the access token
+	expiration time.Time
+	// whether we need to login
+	login bool
+	// whether we should wait for expiration
+	wait bool
+
+	sync.RWMutex
+}
+
 // forwardProxyHandler is responsible for signing outbound requests
 func (r *oauthProxy) forwardProxyHandler() func(*http.Request, *http.Response) {
 	client, err := r.client.OAuthClient()
 	if err != nil {
 		r.log.Fatal("failed to create oauth client", zap.Error(err))
 	}
-	// the loop state
-	var state struct {
-		// the access token
-		token jose.JWT
-		// the refresh token if any
-		refresh string
-		// the identity of the user
-		identity *oidc.Identity
-		// the expiry time of the access token
-		expiration time.Time
-		// whether we need to login
-		login bool
-		// whether we should wait for expiration
-		wait bool
+
+	state := &forwardingState{
+		login: true,
 	}
-	state.login = true
 
 	// create a routine to refresh the access tokens or login on expiration
-	go func() {
+	r.forwardWaitGroup.Go(func() error {
 		for {
+			select {
+			case <-r.forwardCtx.Done():
+				return nil
+			default:
+			}
+
+			state.Lock()
 			state.wait = false
+			cloneState := state
+			state.Unlock()
 
 			// step: do we have a access token
-			if state.login {
+			if cloneState.login {
 				r.log.Info("requesting access token for user",
 					zap.String("username", r.config.ForwardingUsername))
 
@@ -169,7 +191,11 @@ func (r *oauthProxy) forwardProxyHandler() func(*http.Request, *http.Response) {
 				if err != nil {
 					r.log.Error("failed to login to authentication service", zap.Error(err))
 					// step: back-off and reschedule
-					<-time.After(time.Duration(5) * time.Second)
+					select {
+					case <-r.forwardCtx.Done():
+						return nil
+					case <-time.After(time.Duration(5) * time.Second):
+					}
 					continue
 				}
 
@@ -178,11 +204,16 @@ func (r *oauthProxy) forwardProxyHandler() func(*http.Request, *http.Response) {
 				if err != nil {
 					r.log.Error("failed to parse the access token", zap.Error(err))
 					// step: we should probably hope and reschedule here
-					<-time.After(time.Duration(5) * time.Second)
+					select {
+					case <-r.forwardCtx.Done():
+						return nil
+					case <-time.After(time.Duration(5) * time.Second):
+					}
 					continue
 				}
 
 				// step: update the loop state
+				state.Lock()
 				state.token = token
 				state.identity = identity
 				state.expiration = identity.ExpiresAt
@@ -193,23 +224,26 @@ func (r *oauthProxy) forwardProxyHandler() func(*http.Request, *http.Response) {
 				r.log.Info("successfully retrieved access token for subject",
 					zap.String("subject", state.identity.ID),
 					zap.String("email", state.identity.Email),
-					zap.String("expires", state.expiration.Format(time.RFC3339)))
+					zap.String("expires", state.expiration.Format(time.RFC3339)),
+				)
+				state.Unlock()
 
 			} else {
 				r.log.Info("access token is about to expiry",
-					zap.String("subject", state.identity.ID),
-					zap.String("email", state.identity.Email))
+					zap.String("subject", cloneState.identity.ID),
+					zap.String("email", cloneState.identity.Email))
 
 				// step: if we a have a refresh token, we need to login again
-				if state.refresh != "" {
+				if cloneState.refresh != "" {
 					r.log.Info("attempting to refresh the access token",
-						zap.String("subject", state.identity.ID),
-						zap.String("email", state.identity.Email),
-						zap.String("expires", state.expiration.Format(time.RFC3339)))
+						zap.String("subject", cloneState.identity.ID),
+						zap.String("email", cloneState.identity.Email),
+						zap.String("expires", cloneState.expiration.Format(time.RFC3339)))
 
 					// step: attempt to refresh the access
-					token, newRefreshToken, expiration, _, err := getRefreshedToken(r.client, state.refresh)
+					token, newRefreshToken, expiration, _, err := getRefreshedToken(r.client, cloneState.refresh)
 					if err != nil {
+						state.Lock()
 						state.login = true
 						switch err {
 						case ErrRefreshTokenExpired:
@@ -219,10 +253,13 @@ func (r *oauthProxy) forwardProxyHandler() func(*http.Request, *http.Response) {
 						default:
 							r.log.Error("failed to refresh the access token", zap.Error(err))
 						}
+						state.Unlock()
+
 						continue
 					}
 
 					// step: update the state
+					state.Lock()
 					state.token = token
 					state.expiration = expiration
 					state.wait = true
@@ -235,9 +272,12 @@ func (r *oauthProxy) forwardProxyHandler() func(*http.Request, *http.Response) {
 					r.log.Info("successfully refreshed the access token",
 						zap.String("subject", state.identity.ID),
 						zap.String("email", state.identity.Email),
-						zap.String("expires", state.expiration.Format(time.RFC3339)))
+						zap.String("expires", state.expiration.Format(time.RFC3339)),
+					)
+					state.Unlock()
 
 				} else {
+					state.Lock()
 					r.log.Info("session does not support refresh token, acquiring new token",
 						zap.String("subject", state.identity.ID),
 						zap.String("email", state.identity.Email))
@@ -245,28 +285,39 @@ func (r *oauthProxy) forwardProxyHandler() func(*http.Request, *http.Response) {
 					// we don't have a refresh token, we must perform a login again
 					state.wait = false
 					state.login = true
+					state.Unlock()
 				}
 			}
 
 			// wait for an expiration to come close
-			if state.wait {
+			if cloneState.wait {
 				// set the expiration of the access token within a random 85% of actual expiration
-				duration := getWithin(state.expiration, 0.85)
+				duration := getWithin(cloneState.expiration, 0.85)
 				r.log.Info("waiting for expiration of access token",
-					zap.String("token_expiration", state.expiration.Format(time.RFC3339)),
-					zap.String("renewal_duration", duration.String()))
+					zap.String("token_expiration", cloneState.expiration.Format(time.RFC3339)),
+					zap.String("renewal_duration", duration.String()),
+				)
 
-				<-time.After(duration)
+				select {
+				case <-r.forwardCtx.Done():
+					return nil
+				case <-time.After(duration):
+				}
 			}
 		}
-	}()
+	})
 
 	return func(req *http.Request, resp *http.Response) {
 		hostname := req.Host
 		req.URL.Host = hostname
 		// is the host being signed?
 		if len(r.config.ForwardingDomains) == 0 || containsSubString(hostname, r.config.ForwardingDomains) {
-			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", state.token.Encode()))
+			var token jose.JWT
+			state.RLock()
+			token = state.token
+			state.RUnlock()
+
+			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token.Encode()))
 			req.Header.Set("X-Forwarded-Agent", version.Prog)
 		}
 	}
@@ -287,11 +338,16 @@ func (r *oauthProxy) createProxy() error {
 	// create the forwarding proxy
 	proxy := goproxy.NewProxyHttpServer()
 	proxy.KeepDestinationHeaders = true
-	proxy.Logger = httplog.New(ioutil.Discard, "", 0)
+	proxy.Logger = httplog.New(io.Discard, "", 0)
 	r.upstream = proxy
 
 	// update the tls configuration of the reverse proxy
-	r.upstream.(*goproxy.ProxyHttpServer).Tr = &http.Transport{
+	proxy, ok := r.upstream.(*goproxy.ProxyHttpServer)
+	if !ok {
+		return errors.New("invalid proxy type")
+	}
+
+	proxy.Tr = &http.Transport{
 		Dial:                  dialer,
 		DisableKeepAlives:     !r.config.UpstreamKeepalives,
 		ExpectContinueTimeout: r.config.UpstreamExpectContinueTimeout,

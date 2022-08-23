@@ -16,17 +16,17 @@ jobs:
           name: Run linter
           environment:
           command: |
-            golangci-lint run --timeout 10m --new-from-rev oneconcern-release
+            golangci-lint run --timeout 2m --new-from-rev oneconcern-release
 
   test:
     working_directory: /go/src/github.com/oneconcern/keycloak-gatekeeper
     docker:
-      - image: circleci/golang:latest
+      - image: golang:1.19
     steps:
       - checkout
       - run:
           name: Run unit tests
-          command: GO111MODULE=on go test -v -covermode=atomic -coverprofile=cover.out
+          command: go test -v -race -covermode=atomic -coverprofile=cover.out
           no_output_timeout: 30m
 
   build_image:
@@ -44,7 +44,6 @@ jobs:
             echo $GCLOUD_SERVICE_KEY | gcloud auth activate-service-account --key-file=-
             gcloud --quiet config set project ${GOOGLE_PROJECT_ID}
             gcloud --quiet config set compute/region ${GOOGLE_COMPUTE_REGION}
-            #gcloud --quiet config set container/new_scopes_behavior true
             gcloud --quiet container clusters get-credentials ${CLUSTER} --region ${GOOGLE_COMPUTE_REGION}
       - checkout
       - setup_remote_docker:

@@ -1,4 +1,5 @@
-//+build noforwarding
+//go:build noforwarding
+// +build noforwarding
 
 package main
 

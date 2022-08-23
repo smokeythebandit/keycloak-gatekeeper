@@ -30,6 +30,7 @@ import (
 	"github.com/coreos/go-oidc/jose"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -87,6 +88,9 @@ func TestReverseProxyHeaders(t *testing.T) {
 	token := newTestToken(p.idp.getLocation())
 	token.addRealmRoles([]string{fakeAdminRole})
 	signed, _ := p.idp.signToken(token.claims)
+	sub, ok := token.claims["sub"].(string)
+	require.True(t, ok)
+
 	requests := []fakeRequest{
 		{
 			URI:           "/auth_all/test",
@@ -95,7 +99,7 @@ func TestReverseProxyHeaders(t *testing.T) {
 			ExpectedProxyHeaders: map[string]string{
 				"X-Auth-Email":    "gambol99@gmail.com",
 				"X-Auth-Roles":    "role:admin",
-				"X-Auth-Subject":  token.claims["sub"].(string),
+				"X-Auth-Subject":  sub,
 				"X-Auth-Token":    signed.Encode(),
 				"X-Auth-Userid":   "rjayawardene",
 				"X-Auth-Username": "rjayawardene",
@@ -103,27 +107,6 @@ func TestReverseProxyHeaders(t *testing.T) {
 			ExpectedCode: http.StatusOK,
 		},
 	}
-	p.RunTests(t, requests)
-}
-
-func TestForwardingProxy(t *testing.T) {
-	cfg := newFakeKeycloakConfig()
-	cfg.EnableForwarding = true
-	cfg.ForwardingDomains = []string{}
-	cfg.ForwardingUsername = validUsername
-	cfg.ForwardingPassword = validPassword
-	s := httptest.NewServer(&fakeUpstreamService{})
-	requests := []fakeRequest{
-		{
-			URL:                     s.URL + "/test",
-			ProxyRequest:            true,
-			ExpectedProxy:           true,
-			ExpectedCode:            http.StatusOK,
-			ExpectedContentContains: "Bearer ey",
-		},
-	}
-	p := newFakeProxy(cfg)
-	<-time.After(time.Duration(100) * time.Millisecond)
 	p.RunTests(t, requests)
 }
 
@@ -535,13 +518,16 @@ func (f *fakeUpstreamService) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	w.Header().Set(testProxyAccepted, "true")
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	content, _ := json.Marshal(&fakeUpstreamResponse{
+	content, err := json.Marshal(&fakeUpstreamResponse{
 		URI:     r.RequestURI,
 		Method:  r.Method,
 		Address: r.RemoteAddr,
 		Headers: r.Header,
 		Message: "upstream called",
 	})
+	if err != nil {
+		panic(fmt.Sprintf("test error: could not marshal: %v", err))
+	}
 	_, _ = w.Write(content)
 }
 

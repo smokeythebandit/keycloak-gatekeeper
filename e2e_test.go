@@ -22,10 +22,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"path"
 	"testing"
 	"time"
@@ -36,7 +36,7 @@ import (
 )
 
 func makeTestCACertPool() *x509.CertPool {
-	crt, err := ioutil.ReadFile(caCert)
+	crt, err := os.ReadFile(caCert)
 	if err != nil {
 		msg := fmt.Sprintf("cannot read test CA cert file: %v", err)
 		panic(msg)
@@ -77,7 +77,7 @@ func checkListenOrBail(endpoint string) bool {
 	checkListen := http.Client{
 		Transport: transport,
 	}
-	// nolint: noctx
+	//nolint: noctx
 	resp, err := checkListen.Get(endpoint)
 	if err == nil {
 		defer func() {
@@ -87,7 +87,7 @@ func checkListenOrBail(endpoint string) bool {
 	limit := 0
 	for err != nil && limit < maxWaitCycles {
 		time.Sleep(waitTime)
-		// nolint: noctx
+		//nolint: noctx
 		resp, err = checkListen.Get(endpoint)
 		if err == nil {
 			defer func() {
@@ -261,7 +261,7 @@ func runTestConnect(t *testing.T, config *Config, listener, route string) (strin
 	u.RawQuery = v.Encode()
 
 	req := &http.Request{
-		Method: "GET",
+		Method: http.MethodGet,
 		URL:    u,
 		Header: make(http.Header),
 	}
@@ -286,7 +286,7 @@ func runTestConnect(t *testing.T, config *Config, listener, route string) (strin
 
 	// check that we get the final redirection to app correctly
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	buf, erb := ioutil.ReadAll(resp.Body)
+	buf, erb := io.ReadAll(resp.Body)
 	assert.NoError(t, erb)
 	assert.JSONEq(t, `{"message": "ok"}`, string(buf))
 

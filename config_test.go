@@ -383,6 +383,7 @@ func TestIsConfigValid(t *testing.T) {
 	}
 }
 
+//nolint:nosnakecase
 func TestParseTLS(t *testing.T) {
 	tlsConfigFixture := tlsAdvancedConfig{
 		tlsPreferServerCipherSuites: true,

@@ -42,6 +42,7 @@ func methodNotFoundHandler(w http.ResponseWriter, req *http.Request) {
 	_, _ = w.Write(nil)
 }
 
+//nolint:contextcheck
 func (r *oauthProxy) errorResponse(w http.ResponseWriter, req *http.Request, msg string, code int, err error) {
 	span, logger := r.traceSpanRequest(req)
 

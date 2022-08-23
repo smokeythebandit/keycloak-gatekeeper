@@ -17,6 +17,7 @@ package main
 
 import (
 	"bytes"
+	"compress/zlib"
 	"crypto/aes"
 	"crypto/cipher"
 	cryptorand "crypto/rand"
@@ -31,7 +32,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math/big"
 	"net"
 	"net/http"
@@ -43,11 +43,9 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"compress/zlib"
-
 	"github.com/coreos/go-oidc/jose"
 	"github.com/urfave/cli"
-	yaml "gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v3"
 )
 
 var (
@@ -135,7 +133,7 @@ func getRequestHostURL(r *http.Request) string {
 
 // readConfigFile reads and parses the configuration file
 func readConfigFile(filename string, config *Config) error {
-	content, err := ioutil.ReadFile(filename)
+	content, err := os.ReadFile(filename)
 	if err != nil {
 		return err
 	}
@@ -222,7 +220,7 @@ func decodeText(state, key string) (string, error) {
 	}
 	defer r.Close()
 
-	uncompressed, err := ioutil.ReadAll(r)
+	uncompressed, err := io.ReadAll(r)
 	if err != nil {
 		return "", ErrInvalidSession
 	}
@@ -382,12 +380,12 @@ func mergeMaps(dest, source map[string]string) map[string]string {
 
 // loadCA loads the certificate authority
 func loadCA(cert, key string) (*tls.Certificate, error) {
-	caCert, err := ioutil.ReadFile(cert)
+	caCert, err := os.ReadFile(cert)
 	if err != nil {
 		return nil, err
 	}
 
-	caKey, err := ioutil.ReadFile(key)
+	caKey, err := os.ReadFile(key)
 	if err != nil {
 		return nil, err
 	}

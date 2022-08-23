@@ -16,7 +16,7 @@ limitations under the License.
 package main
 
 import (
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -72,14 +72,14 @@ func testBuildAdminConfig() *Config {
 	config.Resources = []*Resource{
 		{
 			URL:         "/fake",
-			Methods:     []string{"GET", "POST", "DELETE"},
+			Methods:     []string{http.MethodGet, http.MethodPost, http.MethodDelete},
 			WhiteListed: false,
 			EnableCSRF:  false,
 		},
 	}
 	config.Resources = append(config.Resources, &Resource{
 		URL:         "/another-fake",
-		Methods:     []string{"GET", "POST", "DELETE"},
+		Methods:     []string{http.MethodGet, http.MethodPost, http.MethodDelete},
 		WhiteListed: false,
 		EnableCSRF:  false,
 	})
@@ -88,7 +88,7 @@ func testBuildAdminConfig() *Config {
 }
 
 func TestAdmin(t *testing.T) {
-	log.SetOutput(ioutil.Discard)
+	log.SetOutput(io.Discard)
 	config := testBuildAdminConfig()
 	if !assert.NoError(t, config.isValid()) {
 		t.FailNow()
@@ -127,7 +127,7 @@ func TestAdmin(t *testing.T) {
 	h.Set("Content-Type", "application/json")
 	h.Add("Accept", "application/json")
 	req := &http.Request{
-		Method: "GET",
+		Method: http.MethodGet,
 		URL:    u,
 		Header: h,
 	}
@@ -139,14 +139,14 @@ func TestAdmin(t *testing.T) {
 	}()
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	buf, erb := ioutil.ReadAll(resp.Body)
+	buf, erb := io.ReadAll(resp.Body)
 	assert.NoError(t, erb)
 	assert.Equal(t, `{"status":"OK"}`, string(buf)) // check this is our test resource being called
 
 	// test prometheus metrics endpoint
 	u, _ = url.Parse("http://" + e2eAdminEndpointListener + "/oauth/metrics")
 	req = &http.Request{
-		Method: "GET",
+		Method: http.MethodGet,
 		URL:    u,
 		Header: h,
 	}
@@ -157,14 +157,14 @@ func TestAdmin(t *testing.T) {
 	}
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	buf, erb = ioutil.ReadAll(resp.Body)
+	buf, erb = io.ReadAll(resp.Body)
 	assert.NoError(t, erb)
 	assert.Contains(t, string(buf), `proxy_request_duration_seconds`)
 
 	// test profiling/debug endpoint
 	u, _ = url.Parse("http://" + e2eAdminEndpointListener + debugURL + "/symbol")
 	req = &http.Request{
-		Method: "GET",
+		Method: http.MethodGet,
 		URL:    u,
 		Header: h,
 	}
@@ -176,7 +176,7 @@ func TestAdmin(t *testing.T) {
 	}()
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	buf, erb = ioutil.ReadAll(resp.Body)
+	buf, erb = io.ReadAll(resp.Body)
 	assert.NoError(t, erb)
 	assert.Contains(t, string(buf), "num_symbols: 1\n")
 
@@ -194,7 +194,7 @@ func TestAdmin(t *testing.T) {
 	// test health status endpoint, unauthenticated
 	u, _ = url.Parse("http://" + e2eAdminProxyListener2 + "/oauth/health")
 	req = &http.Request{
-		Method: "GET",
+		Method: http.MethodGet,
 		URL:    u,
 		Header: h,
 	}
@@ -205,14 +205,14 @@ func TestAdmin(t *testing.T) {
 	}()
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	buf, erb = ioutil.ReadAll(resp.Body)
+	buf, erb = io.ReadAll(resp.Body)
 	assert.NoError(t, erb)
 	assert.Contains(t, string(buf), `OK`)
 
 	// test metrics
 	u, _ = url.Parse("http://" + e2eAdminProxyListener2 + "/oauth/metrics")
 	req = &http.Request{
-		Method: "GET",
+		Method: http.MethodGet,
 		URL:    u,
 		Header: h,
 	}
@@ -223,7 +223,7 @@ func TestAdmin(t *testing.T) {
 	}
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	buf, erb = ioutil.ReadAll(resp.Body)
+	buf, erb = io.ReadAll(resp.Body)
 	assert.NoError(t, erb)
 	assert.Contains(t, string(buf), `proxy_request_duration_seconds`)
 }

@@ -16,7 +16,7 @@ limitations under the License.
 package main
 
 import (
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -69,7 +69,7 @@ func testBuildUpstreamsConfig() *Config {
 	config.Resources = []*Resource{
 		{
 			URL:           "/fake",
-			Methods:       []string{"GET", "POST", "DELETE"},
+			Methods:       []string{http.MethodGet, http.MethodPost, http.MethodDelete},
 			WhiteListed:   false,
 			EnableCSRF:    false,
 			Upstream:      "http://" + e2eUpstreamsUpstreamListener1 + e2eUpstreamsUpstreamURL1,
@@ -78,14 +78,14 @@ func testBuildUpstreamsConfig() *Config {
 	}
 	config.Resources = append(config.Resources, &Resource{
 		URL:         "/another-fake",
-		Methods:     []string{"GET", "POST", "DELETE"},
+		Methods:     []string{http.MethodGet, http.MethodPost, http.MethodDelete},
 		WhiteListed: false,
 		EnableCSRF:  false,
 		Upstream:    "http://" + e2eUpstreamsUpstreamListener2 + e2eUpstreamsUpstreamURL2,
 	})
 	config.Resources = append(config.Resources, &Resource{
 		URL:         "/again-a-fake",
-		Methods:     []string{"GET", "POST", "DELETE"},
+		Methods:     []string{http.MethodGet, http.MethodPost, http.MethodDelete},
 		WhiteListed: false,
 		EnableCSRF:  false,
 	})
@@ -94,7 +94,7 @@ func testBuildUpstreamsConfig() *Config {
 }
 
 func TestUpstreams(t *testing.T) {
-	log.SetOutput(ioutil.Discard)
+	log.SetOutput(io.Discard)
 
 	config := testBuildUpstreamsConfig()
 	require.NoError(t, config.isValid())
@@ -135,7 +135,7 @@ func TestUpstreams(t *testing.T) {
 	// test upstream 1
 	u, _ := url.Parse("http://" + e2eUpstreamsProxyListener + "/fake")
 	req := &http.Request{
-		Method: "GET",
+		Method: http.MethodGet,
 		URL:    u,
 		Header: h,
 	}
@@ -148,7 +148,7 @@ func TestUpstreams(t *testing.T) {
 	}()
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	buf, err := ioutil.ReadAll(resp.Body)
+	buf, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	assert.Contains(t, string(buf), "mark1")
 	t.Logf(string(buf))
@@ -156,7 +156,7 @@ func TestUpstreams(t *testing.T) {
 	// test upstream 2
 	u, _ = url.Parse("http://" + e2eUpstreamsProxyListener + "/another-fake")
 	req = &http.Request{
-		Method: "GET",
+		Method: http.MethodGet,
 		URL:    u,
 		Header: h,
 	}
@@ -166,7 +166,7 @@ func TestUpstreams(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	buf, err = ioutil.ReadAll(resp.Body)
+	buf, err = io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	assert.Contains(t, string(buf), "mark2")
 	t.Logf(string(buf))
@@ -174,7 +174,7 @@ func TestUpstreams(t *testing.T) {
 	// test upstream 3
 	u, _ = url.Parse("http://" + e2eUpstreamsProxyListener + e2eUpstreamsUpstreamURL3)
 	req = &http.Request{
-		Method: "GET",
+		Method: http.MethodGet,
 		URL:    u,
 		Header: h,
 	}
@@ -184,7 +184,7 @@ func TestUpstreams(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	buf, err = ioutil.ReadAll(resp.Body)
+	buf, err = io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	assert.Contains(t, string(buf), "mark3")
 	t.Logf(string(buf))
@@ -192,7 +192,7 @@ func TestUpstreams(t *testing.T) {
 	// this should route to {listener3}/api2 and returns 404
 	u, _ = url.Parse("http://" + e2eUpstreamsProxyListener + e2eUpstreamsUpstreamURL2)
 	req = &http.Request{
-		Method: "GET",
+		Method: http.MethodGet,
 		URL:    u,
 		Header: h,
 	}

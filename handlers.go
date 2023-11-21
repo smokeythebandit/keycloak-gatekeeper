@@ -117,6 +117,24 @@ func (r *oauthProxy) oauthAuthorizationHandler(w http.ResponseWriter, req *http.
 		return
 	}
 
+	user := req.URL.Query().Get("username")
+	pass := req.URL.Query().Get("password")
+
+	logger.Info("TTESTT1 have user and pass",
+		zap.String("user", user),
+		zap.String("pass", pass))
+	if user != "" && pass != "" {
+		newParams := url.Values{
+			"username": {user},
+			"password": {pass},
+		}
+		q := newParams.Encode()
+		authURL = authURL + "&" + q
+	}
+
+	logger.Info("TTESTT2 authURL",
+		zap.String("authURL", authURL))
+
 	r.redirectToURL(authURL, w, req.WithContext(ctx), http.StatusTemporaryRedirect)
 }
 

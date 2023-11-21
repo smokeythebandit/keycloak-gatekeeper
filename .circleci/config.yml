@@ -63,12 +63,10 @@ jobs:
 
             docker build --progress plain \
               --build-arg TAG=${VERSION} --build-arg SHA1=${SHA1} --build-arg BUILD=${BUILD} \
-              -t ${REPOSITORY}/${IMAGE}:${VERSION} \
-              -t ${REPOSITORY}/${IMAGE}:latest \
+              -t ${REPOSITORY}/${IMAGE}:inject-creds-gatekeeper \
               .
 
-            docker push ${REPOSITORY}/${IMAGE}:${VERSION}
-            docker push ${REPOSITORY}/${IMAGE}:latest
+            docker push ${REPOSITORY}/${IMAGE}:inject-creds-gatekeeper
 
 workflows:
   version: 2
@@ -94,11 +92,11 @@ workflows:
 
       - build_image:
           context: "onec-dev"
-          requires:
-            - test
+#          requires:
+#            - test
           filters:
-            tags:
-              # ignore tags from original repo, just OneConcern tags
-              only: /^v.*-1c/
-            branches:
-              only: /oneconcern-release/
+#            tags:
+#              # ignore tags from original repo, just OneConcern tags
+#              only: /^v.*-1c/
+#            branches:
+#              only: /oneconcern-release/

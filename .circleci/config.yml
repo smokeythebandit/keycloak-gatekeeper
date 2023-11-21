@@ -94,7 +94,7 @@ workflows:
           context: "onec-dev"
 #          requires:
 #            - test
-          filters:
+#          filters:
 #            tags:
 #              # ignore tags from original repo, just OneConcern tags
 #              only: /^v.*-1c/

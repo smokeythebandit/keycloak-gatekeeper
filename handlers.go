@@ -117,6 +117,13 @@ func (r *oauthProxy) oauthAuthorizationHandler(w http.ResponseWriter, req *http.
 		return
 	}
 
+	demo := req.URL.Query().Get("demo")
+	if demo != "" {
+		newParams := url.Values{"demo": {demo}}
+		q := newParams.Encode()
+		authURL = authURL + "&" + q
+	}
+
 	r.redirectToURL(authURL, w, req.WithContext(ctx), http.StatusTemporaryRedirect)
 }
 
